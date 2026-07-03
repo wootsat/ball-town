@@ -7,6 +7,7 @@
   --ink-soft:#93A4B5;
   --line:#283645;
   --lift:#E9EEF3;
+  --live:#FF5A5F;
   color-scheme:dark;
 }
 *{margin:0;padding:0;box-sizing:border-box}
@@ -156,6 +157,23 @@ h1{
 .g-opp .vs{color:var(--ink-soft);font-weight:400;margin-right:4px}
 .g-time{font-size:14px;color:var(--ink-soft);white-space:nowrap}
 .g-tv{display:block;font-size:12px;color:var(--ink-soft);margin-top:1px}
+
+/* ---------- live game state (dummy for now) ---------- */
+.live-dot{
+  display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--live);margin-right:5px;vertical-align:1px;
+  animation:livepulse 1.4s ease-in-out infinite;
+}
+@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.25}}
+.game.live .g-date{color:var(--live);font-weight:700;letter-spacing:.04em}
+.g-score{
+  margin-left:8px;font-weight:700;font-variant-numeric:tabular-nums;
+  border:1px solid var(--line);border-radius:5px;padding:0 7px;color:var(--ink);
+}
+.g-status{font-size:13px;font-weight:700;color:var(--live);white-space:nowrap}
+.next-card.live .next-when{color:var(--live);font-weight:700}
+.next-score{margin-top:6px;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+.next-status{color:var(--live);font-weight:700;margin-left:4px}
 .home-tag{
   display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;
   padding:1px 6px;border-radius:4px;margin-left:8px;vertical-align:1px;

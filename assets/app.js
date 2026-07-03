@@ -19,6 +19,10 @@
   // Extra events fetched beyond GAMES_PER_TEAM so games earlier
   // today (already started, filtered out below) don't leave gaps.
   const FETCH_MARGIN = 2;
+  // TEMP — fake "live" scores to preview the design (score + game
+  // state, e.g. "Bot 7" or "3Q 3:46"). Set to false or delete once
+  // real live data lands. Tags each team's first upcoming game.
+  const DUMMY_LIVE = true;
 
   const citySlug = document.body.dataset.city;
   const city = window.BALLTOWN.cities[citySlug];
@@ -185,13 +189,15 @@
 
     // Channels only for the games we'll actually show (one extra
     // request per game).
-    return Promise.all(
+    const games = await Promise.all(
       upcoming.map(async (ev) => {
         const game = toGame(ev, id, team);
         game.channels = await fetchChannels(ev, game);
         return game;
       })
     );
+    if (DUMMY_LIVE && games[0]) games[0].live = dummyLive(team);
+    return games;
   }
 
   // ---------- formatting ----------
@@ -253,18 +259,39 @@
     return SPORT_ICONS[team.sportPath.split("/")[0]] || "";
   }
 
+  // TEMP — fake live score + game-state per sport, for the design
+  // preview. Remove alongside DUMMY_LIVE when real data arrives.
+  function dummyLive(team) {
+    switch (team.sportPath.split("/")[0]) {
+      case "baseball":   return { us: 4, them: 2, status: "Bot 7" };
+      case "basketball": return { us: 78, them: 74, status: "3Q 3:46" };
+      case "football":   return { us: 17, them: 13, status: "3Q 3:46" };
+      case "hockey":     return { us: 2, them: 1, status: "2nd 5:12" };
+      case "soccer":     return { us: 1, them: 0, status: "72'" };
+      default:           return { us: 0, them: 0, status: "LIVE" };
+    }
+  }
+
   function gameRow(ev, team) {
+    const live = ev.live;
+    const dateCell = live
+      ? '<span class="g-date"><span class="live-dot"></span>LIVE</span>'
+      : '<span class="g-date">' + fmtDate.format(ev.date) + "</span>";
+    const lastCell = live
+      ? '<span class="g-status">' + live.status + "</span>"
+      : '<span class="g-time">' + fmtTime.format(ev.date) + "</span>";
     return (
-      '<li class="game">' +
-      '<span class="g-date">' + fmtDate.format(ev.date) + "</span>" +
+      '<li class="game' + (live ? " live" : "") + '">' +
+      dateCell +
       '<span class="g-opp"><span class="vs">' + (ev.home ? "vs" : "at") + "</span>" +
       ev.opponent +
       (ev.home ? '<span class="home-tag">Home</span>' : "") +
+      (live ? '<span class="g-score">' + live.us + "–" + live.them + "</span>" : "") +
       (ev.channels && ev.channels.length
         ? '<span class="g-tv">' + ev.channels.join(", ") + "</span>"
         : "") +
       "</span>" +
-      '<span class="g-time">' + fmtTime.format(ev.date) + "</span>" +
+      lastCell +
       "</li>"
     );
   }
@@ -301,17 +328,26 @@
   }
 
   function upNextCard(item) {
+    const live = item.ev.live;
+    const topCell = live
+      ? '<div class="next-when"><span class="live-dot"></span>LIVE</div>'
+      : '<div class="next-when">' + fmtDate.format(item.ev.date) + "</div>";
+    const bottomCell = live
+      ? '<div class="next-score">' + live.us + "–" + live.them +
+        ' <span class="next-status">' + live.status + "</span></div>"
+      : '<div class="next-time">' + fmtTime.format(item.ev.date) + " " +
+        localTzLabel(item.ev.date) + "</div>";
     return (
-      '<div class="next-card" style="--tc:' + item.team.colors[0] + '">' +
+      '<div class="next-card' + (live ? " live" : "") + '" style="--tc:' + item.team.colors[0] + '">' +
       '<span class="next-ic" aria-hidden="true">' + sportIcon(item.team) + "</span>" +
-      '<div class="next-when">' + fmtDate.format(item.ev.date) + "</div>" +
+      topCell +
       '<div class="next-team">' + shortTeamName(item.team) + "</div>" +
       '<div class="next-opp">' + (item.ev.home ? "vs " : "at ") + item.ev.opponent +
       (item.ev.home ? " · home" : "") + "</div>" +
       (item.ev.channels && item.ev.channels.length
         ? '<div class="next-tv">' + item.ev.channels.join(", ") + "</div>"
         : "") +
-      '<div class="next-time">' + fmtTime.format(item.ev.date) + " " + localTzLabel(item.ev.date) + "</div>" +
+      bottomCell +
       "</div>"
     );
   }
