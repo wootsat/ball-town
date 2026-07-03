@@ -431,6 +431,17 @@
       '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">' +
       '<circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/>' +
       '<circle cx="12" cy="19" r="1.7"/></svg>';
+    // Firefox "More" submenu: three horizontal dots.
+    const hDotsGlyph =
+      '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">' +
+      '<circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/>' +
+      '<circle cx="19" cy="12" r="1.7"/></svg>';
+    // Firefox "Add app to Home screen" row icon (calendar-like).
+    const calendarGlyph =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="3.5" y="5" width="17" height="16" rx="3"/>' +
+      '<path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>';
 
     let deferred = null;
 
@@ -466,18 +477,19 @@
           "<span>Add it to your home screen for one-tap access.</span></div>" +
           '<button type="button" class="a2hs-add">Install</button>';
       } else if (kind === "firefox") {
-        // Firefox Android: manual via the overflow menu.
+        // Firefox Android: overflow menu -> More -> Add app to Home screen.
         body =
           '<div class="a2hs-text"><b>' + appName + "</b>" +
-          "<span>Tap " + ic(vDotsGlyph) + " then " + ic(plusSquareGlyph) +
-          " <b>Add to Home screen</b></span></div>";
+          "<span>Tap " + ic(vDotsGlyph) + " then " + ic(hDotsGlyph) +
+          " <b>More</b> then " + ic(calendarGlyph) +
+          " <b>Add app to Home screen</b></span></div>";
       } else {
         // iOS Safari: manual via the More / Share sheet.
         body =
           '<div class="a2hs-text"><b>' + appName + "</b>" +
           "<span>Tap " + ic(moreGlyph) + " then " + ic(shareGlyph) +
           " <b>Share</b> then " + ic(plusSquareGlyph) +
-          " Add to Home Screen</span></div>";
+          " <b>Add to Home Screen</b></span></div>";
       }
 
       bar.innerHTML =

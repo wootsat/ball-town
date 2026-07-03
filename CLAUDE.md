@@ -1,19 +1,38 @@
 # ball.town
 
 Static site showing live pro-sports schedules per metro area, fetched
-client-side from ESPN's unofficial API. No build step, no framework, no
-dependencies, no API key. Plain ES5-style JS (IIFE, string concat — no
-modules, no transpiling).
+client-side from ESPN's unofficial API. No framework, no runtime deps,
+no API key. Plain ES5-style client JS (IIFE, string concat — no modules,
+no transpiling). City pages are generated from config by a small Node
+script; the output is committed and served statically.
 
 ## Layout
 
-- `index.html` — city picker landing page.
-- `city/<slug>.html` — one hand-copied shell per city; `data-city` on
+- `data/cities.js` — **single source of truth** for cities/teams. Dual
+  environment: `<script>` sets `window.BALLTOWN` in the browser;
+  `module.exports` lets the generator import it in Node.
+- `tools/city.template.html` — the one city-page skeleton. Edit this to
+  change structure for every city.
+- `tools/build.mjs` — generator: writes `city/<slug>.html` +
+  `city/<slug>.webmanifest` per city and rebuilds the `index.html` cards
+  between the `CITIES:START`/`CITIES:END` markers.
+- `city/<slug>.html`, `city/<slug>.webmanifest` — **generated; never
+  hand-edit** (they carry a "GENERATED FILE" banner). `data-city` on
   `<body>` selects the config entry.
-- `data/cities.js` — single source of truth for cities/teams
-  (`window.BALLTOWN`).
-- `assets/app.js` — all fetch + render logic.
+- `index.html` — city picker; cards between the markers are generated.
+- `assets/app.js` — all fetch + render logic (client-side).
 - `assets/style.css` — all styling.
+
+## Build (generating pages)
+
+```
+npm run build     # or: node tools/build.mjs
+```
+
+Run after editing `data/cities.js` or `tools/city.template.html`, then
+commit the regenerated files. GitHub Pages does NOT run this — it serves
+the committed output. Editing `assets/*.js|css` needs no rebuild.
+Adding a city = one config entry + a rebuild.
 
 ## Run / verify
 
@@ -63,16 +82,26 @@ console).
 
 ## Adding cities / teams
 
-Follow README "Add a city". Pin `teamId` in `data/cities.js` — name
-resolution (`match`) still works but costs one request per league team
-on the core API, so it's a bootstrap convenience only. Also set
-`short` (nickname for chips/strip). Verified ids:
+Edit `data/cities.js` (one entry) then `npm run build` — see README
+"Add a city". Pin `teamId` — name resolution (`match`) still works but
+costs one request per league team on the core API, so it's a bootstrap
+convenience only. Also set `short` (chips/strip nickname) and `abbr`
+(home-screen code). All pinned ids live in `data/cities.js` (10 metros
+as of this writing).
 
-- Minneapolis: Twins MLB 9, Lynx WNBA 8, Vikings NFL 16, United MLS
-  17362, Timberwolves NBA 16, Wild NHL 30.
-- Los Angeles: Dodgers MLB 19, Angels MLB 3, Sparks WNBA 6, Rams NFL
-  14, Chargers NFL 24, LAFC MLS 18966, Galaxy MLS 187, Lakers NBA 13,
-  Clippers NBA 12, Kings NHL 8, Ducks NHL 25.
+Bulk-resolving ids/colors/venues (for adding many markets at once):
+don't use the CORS-only core API — hit the richer **`site.api.espn.com`
+/apis/site/v2/sports/{sportPath}/teams?limit=400`** server-side (Node).
+It returns every team inline in one request per league with `id`,
+`color`, `alternateColor`, `displayName`. Venue is at the team-detail
+endpoint under `team.franchise.venue.fullName` + `.address.city`. Match
+`match` within the correct `sportPath` list (ids are per-league, so the
+same number can repeat across leagues — that's fine). Process with a
+throwaway script that prints only compact results so the big payloads
+never enter context; the 10-city set was built this way. In-season
+leagues (MLB/WNBA/MLS in summer) verify ids via real schedules;
+offseason cards (NFL/NBA/NHL) only prove the id resolves, not the
+schedule.
 
 ## Installable web app (Add to Home Screen)
 

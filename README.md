@@ -5,7 +5,11 @@ NHL, MLS, and WNBA teams, grouped by metro area.
 
 ## How it works
 
-- Plain static site — no build step, no framework, no API key.
+- Plain static site — no framework, no API key, nothing to serve but
+  files. City pages are generated from config by a tiny dependency-free
+  Node script (`tools/build.mjs`); the generated files are committed, so
+  the host just serves static HTML (GitHub Pages does not run the
+  script).
 - Each city page fetches upcoming schedules **live in the browser** from
   ESPN's public (unofficial) API on every page load. Refreshing the
   browser refreshes the data.
@@ -38,20 +42,26 @@ server is more reliable.)
 
 ## Add a city
 
-1. Add an entry to `data/cities.js` (copy the Minneapolis block; the key
-   is the URL slug). Pin each team's ESPN `teamId` — leave it off for
-   the first load and the app resolves it from the `match` name, then
-   pin the id it found.
-2. Copy `city/minneapolis.html` to `city/<slug>.html` and change
-   `data-city="<slug>"` on the `<body>` tag (and the fallback text in
-   `<h1>`/`<title>`).
-3. Copy `city/minneapolis.webmanifest` to `city/<slug>.webmanifest`,
-   and in the new HTML update the `<link rel="manifest">` href, the
-   `apple-mobile-web-app-title`, and the manifest's `name` /
-   `short_name` / `start_url`. The home-screen app name convention is
-   `ball.town <ABBR>` (a 3-letter code for the metro, e.g. `MSP`,
-   `LAX`).
-4. Add a card for it in `index.html`.
+1. Add one entry to `data/cities.js` (copy the Minneapolis block; the
+   key is the URL slug). Set `abbr` (the 3-letter home-screen-app code,
+   e.g. `MSP`, `LA`) and pin each team's ESPN `teamId` — leave it off
+   for the first load and the app resolves it from the `match` name,
+   then pin the id it found. `tagline` and `stripLabel` are optional.
+2. Run the generator:
+
+   ```bash
+   npm run build     # or: node tools/build.mjs
+   ```
+
+That's it. The generator writes `city/<slug>.html` and
+`city/<slug>.webmanifest` from `tools/city.template.html`, and rebuilds
+the city cards on `index.html`. Commit the generated files.
+
+To change the page skeleton for **every** city (add an element, a new
+`<head>` tag, restructure the header), edit `tools/city.template.html`
+once and re-run the generator. Look/behavior changes still live in
+`assets/style.css` / `assets/app.js` and need no rebuild. Never
+hand-edit `city/*.html` or `city/*.webmanifest` — they're regenerated.
 
 The app icons in `assets/icons/` are shared across all cities — no
 per-city icon work. See `assets/icons/README.md` to swap in real art.
@@ -82,9 +92,8 @@ League paths for `sportPath`:
   fetches once and serves cached static pages.
 - Some leagues' schedule endpoints only return the current season
   segment — offseason teams correctly show an "Offseason" state.
-- Not yet done: remaining ~30 city pages, TV/broadcast info, ticket
-  links, per-league filtering, generating city pages from the config
-  instead of hand-copying HTML shells.
+- Not yet done: remaining metro areas (TV/broadcast info is in),
+  ticket links, per-league filtering.
 
 ## Deploying
 

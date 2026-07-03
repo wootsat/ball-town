@@ -1,8 +1,8 @@
 {
-  "name": "ball.town LA",
-  "short_name": "ball.town LA",
-  "description": "Upcoming games for every Los Angeles pro team.",
-  "start_url": "los-angeles.html",
+  "name": "ball.town CHI",
+  "short_name": "ball.town CHI",
+  "description": "Upcoming games for every Chicago pro team.",
+  "start_url": "chicago.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0D141D",
