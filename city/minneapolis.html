@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minneapolis–St. Paul · ball.town</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-city="minneapolis">
+
+<header class="wrap">
+  <nav class="topbar">
+    <a class="brand" href="../index.html">ball<span>.town</span></a>
+    <a class="crumb" href="../index.html">← All cities</a>
+  </nav>
+  <h1 data-city-name>Minneapolis–St. Paul</h1>
+  <p class="tagline"><b>Six pro teams, one page.</b> Upcoming games for every Twin Cities club, with dates and start times in Central Time.</p>
+</header>
+
+<section class="wrap upnext" aria-label="Next games across all teams">
+  <div class="strip-label">Up next in the Cities</div>
+  <div class="strip" id="upnext-strip"></div>
+</section>
+
+<main class="wrap teams" id="teams"></main>
+
+<footer class="wrap">
+  <span id="updated">Loading…</span>
+  <span><b>ball.town</b> · schedules via ESPN public data</span>
+</footer>
+
+<script src="../data/cities.js"></script>
+<script src="../assets/app.js"></script>
+</body>
+</html>

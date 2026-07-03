@@ -1,0 +1,145 @@
+:root{
+  --ice:#F0F3F6;
+  --frost:#FFFFFF;
+  --ink:#16222E;
+  --ink-soft:#5A6B7A;
+  --line:#D9E1E8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--ice);
+  color:var(--ink);
+  font-family:'Barlow',sans-serif;
+  line-height:1.45;
+}
+a{color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+/* ---------- header ---------- */
+header{padding:32px 0 8px}
+.topbar{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.brand{
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:26px;
+  text-transform:lowercase;letter-spacing:.01em;text-decoration:none;color:var(--ink);
+}
+.brand span{color:var(--ink-soft);font-weight:600}
+.crumb{
+  font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-soft);text-decoration:none;
+}
+.crumb:hover{color:var(--ink)}
+h1{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:700;
+  font-size:clamp(52px,9vw,96px);
+  line-height:.95;
+  letter-spacing:.01em;
+  text-transform:uppercase;
+  margin-top:14px;
+}
+.tagline{margin-top:10px;font-size:16px;color:var(--ink-soft);max-width:52ch}
+.tagline b{color:var(--ink);font-weight:600}
+
+/* ---------- up next strip ---------- */
+.upnext{margin:36px 0 12px}
+.strip-label{
+  font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);
+  display:flex;align-items:center;gap:12px;margin-bottom:12px;
+}
+.strip-label::after{content:"";flex:1;height:1px;background:var(--line)}
+.strip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.next-card{
+  background:var(--frost);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px 14px;position:relative;overflow:hidden;
+}
+.next-card::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:var(--tc,var(--ink));
+}
+.next-when{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.next-team{
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;
+  text-transform:uppercase;line-height:1.05;margin:4px 0 2px;color:var(--tc,var(--ink));
+}
+.next-opp{font-size:14px;font-weight:500}
+.next-time{font-size:13px;color:var(--ink-soft);margin-top:6px}
+
+/* ---------- team cards ---------- */
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:44px 0 8px}
+.loading,.load-error{grid-column:1/-1;color:var(--ink-soft);padding:24px 0}
+.team{
+  background:var(--frost);border:1px solid var(--line);border-radius:14px;
+  overflow:hidden;display:flex;flex-direction:column;
+}
+.team-head{
+  padding:18px 20px 14px;
+  border-bottom:3px solid var(--t2,var(--line));
+  background:var(--t1,var(--ink));
+  color:#fff;
+}
+.team-league{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;opacity:.75}
+.team-name{
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;
+  text-transform:uppercase;line-height:1;margin-top:2px;
+}
+.team-venue{font-size:13px;opacity:.8;margin-top:4px}
+.games{list-style:none;flex:1}
+.game{
+  display:grid;grid-template-columns:96px 1fr auto;gap:10px;align-items:baseline;
+  padding:11px 20px;border-bottom:1px solid var(--line);font-size:15px;
+}
+.game:last-child{border-bottom:none}
+.g-date{font-weight:600;font-size:14px;color:var(--ink-soft);letter-spacing:.02em}
+.g-opp{font-weight:500}
+.g-opp .vs{color:var(--ink-soft);font-weight:400;margin-right:4px}
+.g-time{font-size:14px;color:var(--ink-soft);white-space:nowrap}
+.home-tag{
+  display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;
+  padding:1px 6px;border-radius:4px;margin-left:8px;vertical-align:1px;
+  background:var(--t1);color:#fff;text-transform:uppercase;
+}
+
+/* offseason / error state */
+.team.off .team-head{background:var(--frost);color:var(--ink);border-bottom-color:var(--line)}
+.team.off .team-league{color:var(--ink-soft);opacity:1}
+.team.off .team-name{color:var(--t1)}
+.team.off .team-venue{color:var(--ink-soft);opacity:1}
+.off-body{
+  padding:22px 20px 26px;color:var(--ink-soft);font-size:15px;flex:1;
+  display:flex;flex-direction:column;gap:8px;
+}
+.off-pill{
+  align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-soft);
+  border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--ice);
+}
+
+/* ---------- index (city list) ---------- */
+.city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin:36px 0}
+.city-card{
+  display:block;background:var(--frost);border:1px solid var(--line);border-radius:14px;
+  padding:22px;text-decoration:none;transition:border-color .15s;
+}
+.city-card:hover{border-color:var(--ink-soft)}
+.city-card h2{
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:30px;
+  text-transform:uppercase;line-height:1;
+}
+.city-card p{margin-top:6px;font-size:14px;color:var(--ink-soft)}
+
+footer{
+  margin:40px 0 48px;padding-top:18px;border-top:1px solid var(--line);
+  font-size:13px;color:var(--ink-soft);
+  display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+}
+
+@media (max-width:900px){
+  .strip{grid-template-columns:repeat(2,1fr)}
+  .strip .next-card:last-child{grid-column:span 2}
+}
+@media (max-width:720px){
+  .teams{grid-template-columns:1fr}
+  .game{grid-template-columns:84px 1fr auto;padding:11px 16px}
+  .team-head{padding:16px 16px 12px}
+}
