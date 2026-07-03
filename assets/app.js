@@ -2,12 +2,23 @@
 // ball.town — live schedule loader
 // Fetches upcoming games from ESPN's public (unofficial) API
 // on every page load. Refresh the browser = fresh data.
+//
+// Uses sports.core.api.espn.com — the only ESPN API host that
+// sends CORS headers, so it's the only one browsers can call
+// directly (site.api.espn.com / site.web.api.espn.com are
+// blocked for cross-origin pages).
 // ============================================================
 
 (function () {
-  const API = "https://site.api.espn.com/apis/site/v2/sports";
+  const API = "https://sports.core.api.espn.com/v2/sports";
   const GAMES_PER_TEAM = 7;
   const UP_NEXT_COUNT = 5;
+  // How far ahead to look for games. Wide enough to bridge any
+  // offseason gap (NFL's Feb–Aug is the longest).
+  const WINDOW_DAYS = 240;
+  // Extra events fetched beyond GAMES_PER_TEAM so games earlier
+  // today (already started, filtered out below) don't leave gaps.
+  const FETCH_MARGIN = 2;
 
   const citySlug = document.body.dataset.city;
   const city = window.BALLTOWN.cities[citySlug];
@@ -20,21 +31,39 @@
   // ---------- data fetching ----------
 
   async function getJSON(url) {
-    const res = await fetch(url);
+    // $ref links come back as http:// — upgrade so the site also
+    // works when served over https.
+    const res = await fetch(url.replace(/^http:/, "https:"));
     if (!res.ok) throw new Error("HTTP " + res.status + " for " + url);
     return res.json();
   }
 
-  // Find the team's ESPN id by name match (cached per session so
-  // six teams don't mean six league-roster downloads on every visit).
+  // "baseball/mlb" (config) -> "baseball/leagues/mlb" (core API path)
+  function leaguePath(sportPath) {
+    const parts = sportPath.split("/");
+    return parts[0] + "/leagues/" + parts[1];
+  }
+
+  function yyyymmdd(d) {
+    return d.toISOString().slice(0, 10).replace(/-/g, "");
+  }
+
+  // Find the team's ESPN id by name match (cached per session).
+  // The core API's team list is just $ref links, so this costs one
+  // request per team in the league — prefer pinning teamId in
+  // data/cities.js and keeping this as a fallback.
   async function resolveTeamId(team) {
-    if (team.teamId) return team.teamId;
+    if (team.teamId) return String(team.teamId);
     const cacheKey = "balltown:id:" + team.sportPath + ":" + team.match;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) return cached;
 
-    const data = await getJSON(API + "/" + team.sportPath + "/teams?limit=400");
-    const teams = data.sports[0].leagues[0].teams.map((t) => t.team);
+    const list = await getJSON(
+      API + "/" + leaguePath(team.sportPath) + "/teams?limit=400"
+    );
+    const teams = await Promise.all(
+      (list.items || []).map((item) => getJSON(item.$ref))
+    );
     const needle = team.match.toLowerCase();
     const hit = teams.find(
       (t) =>
@@ -42,32 +71,71 @@
         (t.shortDisplayName || "").toLowerCase().includes(needle)
     );
     if (!hit) throw new Error("No ESPN team matching '" + team.match + "'");
-    sessionStorage.setItem(cacheKey, hit.id);
-    return hit.id;
+    sessionStorage.setItem(cacheKey, String(hit.id));
+    return String(hit.id);
+  }
+
+  function toGame(ev, id, team) {
+    const comp = (ev.competitions && ev.competitions[0]) || {};
+    const sides = comp.competitors || [];
+    const us = sides.find((c) => String(c.id) === String(id));
+    const home = !!(us && us.homeAway === "home");
+
+    // Event names are "Away Team at Home Team" in every league.
+    let opponent = null;
+    if (ev.name && ev.name.indexOf(" at ") !== -1) {
+      const halves = ev.name.split(" at ");
+      opponent = home ? halves[0] : halves[1];
+    }
+
+    // seasonType is a $ref like .../types/1. Type 1 is Preseason in
+    // the US leagues but Regular Season in soccer, so skip soccer.
+    const typeRef = (ev.seasonType && ev.seasonType.$ref) || "";
+    const preseason =
+      team.sportPath.indexOf("soccer/") !== 0 && /\/types\/1(\?|$)/.test(typeRef);
+
+    return {
+      date: new Date(ev.date),
+      home: home,
+      opponent: opponent || ev.shortName || "TBD",
+      label: preseason ? "Preseason" : null
+    };
   }
 
   async function fetchUpcoming(team) {
     const id = await resolveTeamId(team);
-    const data = await getJSON(
-      API + "/" + team.sportPath + "/teams/" + id + "/schedule"
-    );
     const now = new Date();
-    const events = (data.events || [])
-      .map((e) => {
-        const comp = (e.competitions && e.competitions[0]) || {};
-        const sides = comp.competitors || [];
-        const us = sides.find((c) => String(c.team && c.team.id) === String(id));
-        const them = sides.find((c) => c !== us);
-        return {
-          date: new Date(e.date),
-          home: !!(us && us.homeAway === "home"),
-          opponent:
-            (them && them.team && (them.team.displayName || them.team.name)) ||
-            e.name ||
-            "TBD",
-          label: e.seasonType && e.seasonType.name === "Preseason" ? "Preseason" : null
-        };
-      })
+    // Start the window a day early: `dates` is interpreted in UTC,
+    // and tonight's game can be "tomorrow" UTC (and vice versa).
+    const start = new Date(now.getTime() - 86400000);
+    const end = new Date(now.getTime() + WINDOW_DAYS * 86400000);
+    const list = await getJSON(
+      API + "/" + leaguePath(team.sportPath) + "/teams/" + id +
+      "/events?dates=" + yyyymmdd(start) + "-" + yyyymmdd(end) + "&limit=500"
+    );
+    const refs = (list.items || []).map((item) => item.$ref);
+    if (!refs.length) return [];
+
+    // The list is date-sorted, but the direction varies by league
+    // (MLB ascending, soccer descending, …). Probe both ends, then
+    // fetch only the earliest handful.
+    const take = GAMES_PER_TEAM + FETCH_MARGIN;
+    const first = await getJSON(refs[0]);
+    let candidates;
+    if (refs.length <= take) {
+      candidates = [first].concat(
+        await Promise.all(refs.slice(1).map(getJSON))
+      );
+    } else {
+      const last = await getJSON(refs[refs.length - 1]);
+      const ascending = new Date(first.date) <= new Date(last.date);
+      const slice = ascending ? refs.slice(1, take) : refs.slice(-take, -1);
+      const rest = await Promise.all(slice.map(getJSON));
+      candidates = ascending ? [first].concat(rest) : rest.concat([last]);
+    }
+
+    const events = candidates
+      .map((ev) => toGame(ev, id, team))
       .filter((ev) => !isNaN(ev.date) && ev.date > now)
       .sort((a, b) => a.date - b.date);
     return events.slice(0, GAMES_PER_TEAM);

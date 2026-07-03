@@ -4,8 +4,10 @@
 // city/<slug>.html (copy minneapolis.html and change data-city).
 //
 // sportPath = ESPN API path: <sport>/<league>
-// match     = name fragment used to find the team's ESPN id
-//             (or set teamId directly if you know it)
+// teamId    = the team's ESPN id (preferred — avoids a slow
+//             per-team league scan on first load)
+// match     = name fragment used to find the team's ESPN id when
+//             teamId isn't set
 // colors    = [primary, secondary] used for the card header
 // ============================================================
 
@@ -22,6 +24,7 @@ window.BALLTOWN = {
           name: "Minnesota Twins",
           leagueLabel: "MLB · Baseball",
           sportPath: "baseball/mlb",
+          teamId: "9",
           match: "Minnesota Twins",
           venue: "Target Field, Minneapolis",
           colors: ["#002B5C", "#D31145"]
@@ -31,6 +34,7 @@ window.BALLTOWN = {
           name: "Minnesota Lynx",
           leagueLabel: "WNBA · Basketball",
           sportPath: "basketball/wnba",
+          teamId: "8",
           match: "Minnesota Lynx",
           venue: "Target Center, Minneapolis",
           colors: ["#0C2340", "#78BE20"]
@@ -40,6 +44,7 @@ window.BALLTOWN = {
           name: "Minnesota Vikings",
           leagueLabel: "NFL · Football",
           sportPath: "football/nfl",
+          teamId: "16",
           match: "Minnesota Vikings",
           venue: "U.S. Bank Stadium, Minneapolis",
           colors: ["#4F2683", "#FFC62F"]
@@ -49,6 +54,7 @@ window.BALLTOWN = {
           name: "Minnesota United FC",
           leagueLabel: "MLS · Soccer",
           sportPath: "soccer/usa.1",
+          teamId: "17362",
           match: "Minnesota United",
           venue: "Allianz Field, St. Paul",
           colors: ["#585958", "#8CD2F4"]
@@ -58,6 +64,7 @@ window.BALLTOWN = {
           name: "Minnesota Timberwolves",
           leagueLabel: "NBA · Basketball",
           sportPath: "basketball/nba",
+          teamId: "16",
           match: "Minnesota Timberwolves",
           venue: "Target Center, Minneapolis",
           colors: ["#236192", "#78BE20"]
@@ -67,6 +74,7 @@ window.BALLTOWN = {
           name: "Minnesota Wild",
           leagueLabel: "NHL · Hockey",
           sportPath: "hockey/nhl",
+          teamId: "30",
           match: "Minnesota Wild",
           venue: "Xcel Energy Center, St. Paul",
           colors: ["#154734", "#DDCBA4"]
