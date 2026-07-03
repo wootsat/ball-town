@@ -87,9 +87,13 @@ on the core API, so it's a bootstrap convenience only. Also set
   (192/512 + 512 maskable for Android, 180 apple-touch-icon for iOS) —
   Android install requires valid 192+512 icons or it won't offer.
 - `initInstallPrompt()` in app.js shows a dismissible bottom banner on
-  mobile only: Android via the `beforeinstallprompt` event (real
-  install button); iOS Safari via static instructions (Share → Add to
-  Home Screen) since iOS has no programmatic install. Dismissal is
+  mobile only, with three UA-specific variants: Chromium Android
+  (`kind:"android"`) gets a real one-tap Install button via the
+  `beforeinstallprompt` event; iOS Safari (`"ios"`) and Firefox Android
+  (`"firefox"`) get manual instructions, because `beforeinstallprompt`
+  is Chromium-only — neither WebKit nor Gecko fires it. The iOS copy is
+  exact ("Tap ⊙ then ⬆ Share then ＋ Add to Home Screen") and must stay
+  in sync with the current Safari share-sheet flow. Dismissal is
   remembered in `localStorage` (`balltown:a2hs-dismissed`); hidden when
   already running standalone. Can't be exercised in the localhost
   preview (needs real mobile UA + HTTPS) — verify on a phone.

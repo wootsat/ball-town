@@ -399,6 +399,10 @@
     // browsers can't, so don't give them dead instructions.
     const iosCantInstall = isIOS && /CriOS|FxiOS|EdgiOS|GSA/.test(ua);
     if (iosCantInstall) return;
+    // Firefox on Android can install, but (like iOS Safari) it never
+    // fires beforeinstallprompt — that event is Chromium-only. So it
+    // gets manual instructions instead of a one-tap button.
+    const isAndroidFirefox = isAndroid && /Firefox|FxiOS|Fennec/i.test(ua);
 
     const appName =
       (document.querySelector('meta[name="apple-mobile-web-app-title"]') || {})
@@ -409,9 +413,24 @@
       'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
       '<path d="M12 15V3M8.5 6.5 12 3l3.5 3.5"/>' +
       '<path d="M6 12H5a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2h-1"/></svg>';
-    const plusGlyph =
+    // iOS Safari toolbar "More" button: a circle with three dots.
+    const moreGlyph =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">' +
+      '<circle cx="12" cy="12" r="9"/>' +
+      '<circle cx="8" cy="12" r="1.15" fill="currentColor" stroke="none"/>' +
+      '<circle cx="12" cy="12" r="1.15" fill="currentColor" stroke="none"/>' +
+      '<circle cx="16" cy="12" r="1.15" fill="currentColor" stroke="none"/></svg>';
+    // "Add to Home Screen" row icon: a plus in a rounded square.
+    const plusSquareGlyph =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
-      'stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+      'stroke-width="1.8" stroke-linecap="round">' +
+      '<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/>' +
+      '<path d="M12 8.5v7M8.5 12h7"/></svg>';
+    // Firefox / Android overflow menu: three vertical dots.
+    const vDotsGlyph =
+      '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">' +
+      '<circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/>' +
+      '<circle cx="12" cy="19" r="1.7"/></svg>';
 
     let deferred = null;
 
@@ -438,15 +457,28 @@
       bar.setAttribute("role", "dialog");
       bar.setAttribute("aria-label", "Add to home screen");
 
-      const body =
-        kind === "android"
-          ? '<div class="a2hs-text"><b>' + appName + "</b>" +
-            "<span>Add it to your home screen for one-tap access.</span></div>" +
-            '<button type="button" class="a2hs-add">Install</button>'
-          : '<div class="a2hs-text"><b>' + appName + "</b>" +
-            '<span>Tap <span class="a2hs-ic">' + shareGlyph +
-            "</span> then <b>Add to Home Screen</b> <span class=\"a2hs-ic\">" +
-            plusGlyph + "</span></span></div>";
+      const ic = (glyph) => '<span class="a2hs-ic">' + glyph + "</span>";
+      let body;
+      if (kind === "android") {
+        // Chromium: one-tap install via the captured event.
+        body =
+          '<div class="a2hs-text"><b>' + appName + "</b>" +
+          "<span>Add it to your home screen for one-tap access.</span></div>" +
+          '<button type="button" class="a2hs-add">Install</button>';
+      } else if (kind === "firefox") {
+        // Firefox Android: manual via the overflow menu.
+        body =
+          '<div class="a2hs-text"><b>' + appName + "</b>" +
+          "<span>Tap " + ic(vDotsGlyph) + " then " + ic(plusSquareGlyph) +
+          " <b>Add to Home screen</b></span></div>";
+      } else {
+        // iOS Safari: manual via the More / Share sheet.
+        body =
+          '<div class="a2hs-text"><b>' + appName + "</b>" +
+          "<span>Tap " + ic(moreGlyph) + " then " + ic(shareGlyph) +
+          " <b>Share</b> then " + ic(plusSquareGlyph) +
+          " Add to Home Screen</span></div>";
+      }
 
       bar.innerHTML =
         '<div class="a2hs-inner">' + body +
@@ -482,8 +514,10 @@
     });
     window.addEventListener("appinstalled", () => removeBanner(true));
 
-    // iOS Safari never fires beforeinstallprompt — show instructions.
+    // Browsers without beforeinstallprompt (iOS Safari, Firefox on
+    // Android) never signal installability — show instructions instead.
     if (isIOS) setTimeout(() => showBanner("ios"), 1500);
+    else if (isAndroidFirefox) setTimeout(() => showBanner("firefox"), 1500);
   }
 
   // ---------- sticky mini-header (mobile) ----------
