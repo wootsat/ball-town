@@ -10,10 +10,9 @@
   const UP_NEXT_COUNT = 5;
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
-  // TEMP — fake "live" scores to preview the design (score + game
-  // state, e.g. "Bot 7" or "3Q 3:46"). Set to false or delete once
-  // real live data lands. Tags each team's first upcoming game.
-  const DUMMY_LIVE = true;
+  // In-progress scores from the /live Pages Function (edge-cached ~30s).
+  const LIVE_URL = "../live";
+  const LIVE_POLL_MS = 30000;
 
   const citySlug = document.body.dataset.city;
   const city = window.BALLTOWN.cities[citySlug];
@@ -59,7 +58,6 @@
       label: g.label || null,
       channels: g.channels || []
     }));
-    if (DUMMY_LIVE && games[0]) games[0].live = dummyLive(team);
     return games;
   }
 
@@ -74,6 +72,17 @@
   const fmtTime = new Intl.DateTimeFormat("en-US", {
     hour: "numeric", minute: "2-digit"
   });
+
+  // Date label in the viewer's local zone: "Today" / "Tomorrow" for
+  // those days, otherwise "Sat, Jul 5". Compares local calendar days,
+  // rounded so DST hour shifts don't skew the count.
+  function dayLabel(d) {
+    const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+    const diff = Math.round((startOfDay(d) - startOfDay(new Date())) / 86400000);
+    if (diff === 0) return "Today";
+    if (diff === 1) return "Tomorrow";
+    return fmtDate.format(d);
+  }
 
   // Viewer's zone abbreviation ("CDT", "GMT+2", …) for the given
   // date, so DST changes stay accurate.
@@ -122,24 +131,11 @@
     return SPORT_ICONS[team.sportPath.split("/")[0]] || "";
   }
 
-  // TEMP — fake live score + game-state per sport, for the design
-  // preview. Remove alongside DUMMY_LIVE when real data arrives.
-  function dummyLive(team) {
-    switch (team.sportPath.split("/")[0]) {
-      case "baseball":   return { us: 4, them: 2, status: "Bot 7" };
-      case "basketball": return { us: 78, them: 74, status: "3Q 3:46" };
-      case "football":   return { us: 17, them: 13, status: "3Q 3:46" };
-      case "hockey":     return { us: 2, them: 1, status: "2nd 5:12" };
-      case "soccer":     return { us: 1, them: 0, status: "72'" };
-      default:           return { us: 0, them: 0, status: "LIVE" };
-    }
-  }
-
   function gameRow(ev, team) {
     const live = ev.live;
     const dateCell = live
       ? '<span class="g-date"><span class="live-dot"></span>LIVE</span>'
-      : '<span class="g-date">' + fmtDate.format(ev.date) + "</span>";
+      : '<span class="g-date">' + dayLabel(ev.date) + "</span>";
     const lastCell = live
       ? '<span class="g-status">' + live.status + "</span>"
       : '<span class="g-time">' + fmtTime.format(ev.date) + "</span>";
@@ -194,7 +190,7 @@
     const live = item.ev.live;
     const topCell = live
       ? '<div class="next-when"><span class="live-dot"></span>LIVE</div>'
-      : '<div class="next-when">' + fmtDate.format(item.ev.date) + "</div>";
+      : '<div class="next-when">' + dayLabel(item.ev.date) + "</div>";
     const bottomCell = live
       ? '<div class="next-score">' + live.us + "–" + live.them +
         ' <span class="next-status">' + live.status + "</span></div>"
@@ -479,6 +475,48 @@
     });
   }
 
+  // ---------- live scores ----------
+
+  function renderTeams(results) {
+    const teamsEl = document.getElementById("teams");
+    // in-season teams first, offseason/error last
+    const sorted = results.slice().sort(
+      (a, b) => (b.events.length ? 1 : 0) - (a.events.length ? 1 : 0)
+    );
+    teamsEl.innerHTML = sorted.map((r) => teamCard(r.team, r.events, r.error)).join("");
+  }
+
+  // Poll /live and overlay in-progress scores onto each team's current
+  // game. Only re-renders when something actually changed, so idle
+  // pages (no live games) don't churn the DOM every interval.
+  function startLive(results) {
+    async function poll() {
+      let data;
+      try {
+        data = await (await fetch(LIVE_URL, { cache: "no-cache" })).json();
+      } catch (e) {
+        return; // endpoint unavailable (e.g. local static server) — skip
+      }
+      const games = (data && data.games) || {};
+      let changed = false;
+      results.forEach((r) => {
+        if (!r.events.length) return;
+        const live = games[r.team.sportPath + ":" + r.team.teamId] || null;
+        const cur = r.events[0].live || null;
+        if (JSON.stringify(cur) !== JSON.stringify(live)) {
+          r.events[0].live = live;
+          changed = true;
+        }
+      });
+      if (changed) {
+        renderTeams(results);
+        applyFilter();
+      }
+    }
+    poll();
+    setInterval(poll, LIVE_POLL_MS);
+  }
+
   // ---------- boot ----------
 
   async function main() {
@@ -509,15 +547,10 @@
       return { team, events: games || [], error: games ? null : true };
     });
 
-    // team cards: in-season teams first, offseason/error last
-    const sorted = results.slice().sort(
-      (a, b) => (b.events.length ? 1 : 0) - (a.events.length ? 1 : 0)
-    );
-    teamsEl.innerHTML = sorted.map((r) => teamCard(r.team, r.events, r.error)).join("");
-
-    // up-next strip + grayed-out cards for filtered teams
     lastResults = results;
-    applyFilter();
+    renderTeams(results);
+    applyFilter();      // up-next strip + grayed-out filtered cards
+    startLive(results); // overlay in-progress scores, then poll
 
     const stamp = document.getElementById("updated");
     if (stamp) {

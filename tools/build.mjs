@@ -19,9 +19,14 @@ const { cities } = require(join(root, "data", "cities.js"));
 
 const template = readFileSync(join(root, "tools", "city.template.html"), "utf8");
 const THEME = "#0D141D";
+const SITE = "https://ball.town"; // canonical origin for SEO tags + sitemap
 
 const esc = (s) =>
-  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
 function tagline(city) {
   if (city.tagline) return city.tagline;
@@ -29,6 +34,15 @@ function tagline(city) {
     "<b>Every pro team, one page.</b> Upcoming games for every " +
     esc(city.shortName) +
     " club, with dates and start times shown in your local time."
+  );
+}
+
+// Plain-text meta description (search results + social link previews).
+function description(city) {
+  return (
+    "Upcoming games, live scores, and TV listings for every pro team in " +
+    city.name +
+    " — NFL, NBA, MLB, NHL, MLS and WNBA on one page, in your local time."
   );
 }
 
@@ -56,6 +70,7 @@ function cityPage(slug, city) {
     .replace(/\{\{NAME\}\}/g, esc(city.name))
     .replace(/\{\{ABBR\}\}/g, esc(city.abbr || ""))
     .replace(/\{\{MANIFEST\}\}/g, slug + ".webmanifest")
+    .replace(/\{\{DESCRIPTION\}\}/g, esc(description(city)))
     .replace(/\{\{TAGLINE\}\}/g, tagline(city))
     .replace(/\{\{STRIP_LABEL\}\}/g, esc(city.stripLabel || "Up next in " + city.shortName));
 }
@@ -98,7 +113,20 @@ if (!re.test(index)) {
 index = index.replace(re, block);
 writeFileSync(indexPath, index);
 
+// sitemap.xml — home page + every city page.
+const urls = [SITE + "/"].concat(
+  Object.keys(cities).map((slug) => SITE + "/city/" + slug + ".html")
+);
+const sitemap =
+  '<?xml version="1.0" encoding="UTF-8"?>\n' +
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+  urls
+    .map((u) => "  <url><loc>" + u + "</loc><changefreq>daily</changefreq></url>")
+    .join("\n") +
+  "\n</urlset>\n";
+writeFileSync(join(root, "sitemap.xml"), sitemap);
+
 console.log(
   "Generated " + written + " files for " + Object.keys(cities).length +
-  " cities, and updated index.html."
+  " cities, index.html, and sitemap.xml (" + urls.length + " urls)."
 );

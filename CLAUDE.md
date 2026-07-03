@@ -31,6 +31,21 @@ statically (Cloudflare Pages, domain ball.town).
 - `index.html` — city picker; cards between the markers are generated.
 - `assets/app.js` — client render logic + one fetch of `schedules.json`.
 - `assets/style.css` — all styling.
+- `_headers` — Cloudflare Pages caching: everything `max-age=0,
+  must-revalidate` so deploys + the daily refresh show up immediately
+  (Pages' default 4h asset cache would otherwise hide them).
+- `robots.txt` — static; allows all crawlers, points to the sitemap.
+- `sitemap.xml` — **generated** by build.mjs (home + every city URL);
+  never hand-edit. `tools/city.template.html` also carries per-page SEO
+  meta (description, canonical, Open Graph, Twitter card) filled from
+  config; `index.html`'s are static in its `<head>`. Canonical origin
+  is hardcoded `https://ball.town` in build.mjs (`SITE`).
+- `functions/live.js` — Cloudflare Pages Function served at `/live`.
+  Polls ESPN scoreboards for **in-progress** games, returns a compact
+  `{games:{"<sportPath>:<teamId>":{us,them,status}}}` map (both sides of
+  each game), edge-cached 30s via the Cache API. Auto-deploys with the
+  repo — no Worker/KV/cron. app.js polls it every 30s and overlays the
+  score onto each team's current game (`startLive`).
 
 ## Two pipelines: pages (structure) and data (schedules)
 

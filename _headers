@@ -1,0 +1,7 @@
+# Cloudflare Pages response headers.
+# Always revalidate so deploys and the daily data refresh reach visitors
+# immediately. Unchanged files still return a cheap 304 (no re-download),
+# so this costs a tiny conditional request per load, not bandwidth.
+# (Fonts load from Google's CDN and aren't affected.)
+/*
+  Cache-Control: public, max-age=0, must-revalidate

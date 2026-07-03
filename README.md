@@ -88,6 +88,21 @@ channels the client renders. In production this runs automatically via
 also trigger it manually from the repo's **Actions** tab. Never hand-edit
 `data/schedules.json`.
 
+## Live scores
+
+In-progress scores are served separately from the daily cache by
+`functions/live.js` — a **Cloudflare Pages Function** at `/live`. It
+polls ESPN's scoreboards for games currently in progress and returns a
+small map keyed by team, edge-cached ~30s. The client (`app.js`) polls
+`/live` every 30s and overlays the score + game state (e.g. "Bot 7",
+"3Q 3:46") onto each team's current game.
+
+It needs **no extra setup** — Cloudflare Pages compiles the `functions/`
+directory automatically on deploy, and the Cache API needs no KV/cron.
+ESPN is hit at most ~once per 30s per edge location regardless of
+traffic. (Local `python -m http.server` doesn't run Functions, so live
+overlays only appear on the deployed site.)
+
 ## Known limitations / roadmap
 
 - **Unofficial data source.** ESPN's endpoints are undocumented and
@@ -95,13 +110,14 @@ also trigger it manually from the repo's **Actions** tab. Never hand-edit
   site, plan to move to a supported source (e.g. TheSportsDB premium).
   The daily fetcher is the one place that touches ESPN, so it's the only
   thing that would need swapping.
-- **Data is up to ~24h stale** (daily refresh). Fine for upcoming
-  schedules; live in-game scores would need a separate near-real-time
-  layer (see the `live` overlay hooks in app.js — currently dummy data).
+- **Schedules are up to ~24h stale** (daily refresh) — fine for upcoming
+  games. **Live in-progress scores** are separate and near-real-time via
+  the `/live` Pages Function (edge-cached ~30s; the client polls it).
 - Some leagues publish next season's schedule late — offseason teams
   correctly show an "Offseason" state.
-- Not yet done: remaining metro areas (TV/broadcast info is in),
-  ticket links, per-league filtering, real live scores.
+- Not yet done: remaining metro areas (TV/broadcast info + live scores
+  are in), ticket links, per-league filtering, post-game "Final" states
+  (the live layer currently overlays in-progress games only).
 
 ## Deploying
 
@@ -122,6 +138,22 @@ DNS for ball.town is managed by Cloudflare (nameservers pointed there),
 so the apex domain + HTTPS are handled automatically via the Pages
 "Custom domains" tab.
 
+Caching is controlled by the `_headers` file (a Cloudflare Pages
+feature): everything is served `max-age=0, must-revalidate`, so a deploy
+or the daily data refresh reaches visitors on their next load — no stale
+JS/CSS, no hard-refresh needed. Unchanged files still return a 304, so
+it costs a tiny conditional request per load, not bandwidth. (Cloudflare
+Pages' default is a 4-hour asset cache, which would hide deploys for
+hours — hence this override.)
+
 All asset paths are relative, so the site also works unchanged from a
 subpath (e.g. GitHub Pages at `/ball-town/`) if you ever need a
 fallback host.
+
+Discoverability: `npm run build` also emits `sitemap.xml` (home + every
+city), there's a static `robots.txt` pointing to it, and every page
+carries meta description + canonical + Open Graph/Twitter tags so search
+engines index it and shared links preview nicely. After the first
+deploy, submit `https://ball.town/sitemap.xml` in Google Search Console
+to speed up indexing. (Social previews use the app icon; swap in a
+1200×630 banner image later if you want richer cards.)
