@@ -40,6 +40,22 @@ h1{
 .tagline{margin-top:10px;font-size:16px;color:var(--ink-soft);max-width:52ch}
 .tagline b{color:var(--ink);font-weight:600}
 
+/* ---------- team filter chips ---------- */
+.team-filter{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;letter-spacing:.02em;
+  color:var(--ink);background:var(--frost);border:1px solid var(--line);
+  border-radius:999px;padding:6px 12px;cursor:pointer;
+  transition:border-color .15s,opacity .15s;
+}
+.chip:hover{border-color:var(--ink-soft)}
+.chip-dot{width:10px;height:10px;border-radius:50%;background:var(--tc,var(--ink));flex:none}
+.chip.is-off{opacity:.45;filter:grayscale(1)}
+.chip.is-off .chip-dot{background:var(--ink-soft)}
+.team.filtered{opacity:.35;filter:grayscale(1)}
+.strip-empty{grid-column:1/-1;color:var(--ink-soft);font-size:14px;padding:6px 0}
+
 /* ---------- up next strip ---------- */
 .upnext{margin:36px 0 12px}
 .strip-label{

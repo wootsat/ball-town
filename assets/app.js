@@ -28,6 +28,17 @@
     return;
   }
 
+  // ---------- team filter state ----------
+
+  const HIDDEN_KEY = "balltown:hidden:" + citySlug;
+  let hiddenKeys;
+  try {
+    hiddenKeys = new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || "[]"));
+  } catch (e) {
+    hiddenKeys = new Set();
+  }
+  let lastResults = [];
+
   // ---------- data fetching ----------
 
   async function getJSON(url) {
@@ -152,6 +163,11 @@
 
   // ---------- rendering ----------
 
+  // "Minnesota Wild" -> "Wild", "Minnesota United FC" -> "United"
+  function shortTeamName(team) {
+    return team.name.replace(/^Minnesota\s+/, "").replace(/\s+FC$/, "");
+  }
+
   function gameRow(ev, team) {
     return (
       '<li class="game">' +
@@ -189,7 +205,8 @@
     }
 
     return (
-      '<section class="team' + extraClass + '" style="--t1:' + team.colors[0] +
+      '<section class="team' + extraClass + '" data-key="' + team.key +
+      '" style="--t1:' + team.colors[0] +
       ";--t2:" + team.colors[1] + '">' + head + body + "</section>"
     );
   }
@@ -198,12 +215,65 @@
     return (
       '<div class="next-card" style="--tc:' + item.team.colors[0] + '">' +
       '<div class="next-when">' + fmtDate.format(item.ev.date) + "</div>" +
-      '<div class="next-team">' + item.team.name.replace("Minnesota ", "").replace(" FC", "") + "</div>" +
+      '<div class="next-team">' + shortTeamName(item.team) + "</div>" +
       '<div class="next-opp">' + (item.ev.home ? "vs " : "at ") + item.ev.opponent +
       (item.ev.home ? " · home" : "") + "</div>" +
       '<div class="next-time">' + fmtTime.format(item.ev.date) + " " + city.tzLabel + "</div>" +
       "</div>"
     );
+  }
+
+  // ---------- team filter ----------
+
+  function renderFilter() {
+    const el = document.getElementById("team-filter");
+    if (!el) return;
+    el.innerHTML = city.teams
+      .map(
+        (t) =>
+          '<button type="button" class="chip' +
+          (hiddenKeys.has(t.key) ? " is-off" : "") +
+          '" data-key="' + t.key +
+          '" aria-pressed="' + !hiddenKeys.has(t.key) +
+          '" style="--tc:' + t.colors[0] + '">' +
+          '<span class="chip-dot"></span>' + shortTeamName(t) + "</button>"
+      )
+      .join("");
+    el.addEventListener("click", (e) => {
+      const btn = e.target.closest(".chip");
+      if (!btn) return;
+      const key = btn.dataset.key;
+      if (hiddenKeys.has(key)) hiddenKeys.delete(key);
+      else hiddenKeys.add(key);
+      localStorage.setItem(HIDDEN_KEY, JSON.stringify(Array.from(hiddenKeys)));
+      applyFilter();
+    });
+  }
+
+  function applyFilter() {
+    document.querySelectorAll("#team-filter .chip").forEach((btn) => {
+      const off = hiddenKeys.has(btn.dataset.key);
+      btn.classList.toggle("is-off", off);
+      btn.setAttribute("aria-pressed", String(!off));
+    });
+    document.querySelectorAll("#teams .team[data-key]").forEach((sec) => {
+      sec.classList.toggle("filtered", hiddenKeys.has(sec.dataset.key));
+    });
+    renderStrip();
+  }
+
+  function renderStrip() {
+    const stripEl = document.getElementById("upnext-strip");
+    if (!lastResults.length) return; // still loading
+    const all = [];
+    lastResults.forEach((r) => {
+      if (hiddenKeys.has(r.team.key)) return;
+      r.events.forEach((ev) => all.push({ team: r.team, ev }));
+    });
+    all.sort((a, b) => a.ev.date - b.ev.date);
+    stripEl.innerHTML = all.length
+      ? all.slice(0, UP_NEXT_COUNT).map(upNextCard).join("")
+      : '<p class="strip-empty">All teams are hidden — tap a team above to bring them back.</p>';
   }
 
   // ---------- boot ----------
@@ -214,8 +284,9 @@
     });
     document.title = city.name + " · ball.town";
 
+    renderFilter();
+
     const teamsEl = document.getElementById("teams");
-    const stripEl = document.getElementById("upnext-strip");
     teamsEl.innerHTML = '<p class="loading">Loading schedules…</p>';
 
     const results = await Promise.all(
@@ -235,13 +306,9 @@
     );
     teamsEl.innerHTML = sorted.map((r) => teamCard(r.team, r.events, r.error)).join("");
 
-    // up-next strip: earliest games across all teams
-    const all = [];
-    results.forEach((r) =>
-      r.events.forEach((ev) => all.push({ team: r.team, ev }))
-    );
-    all.sort((a, b) => a.ev.date - b.ev.date);
-    stripEl.innerHTML = all.slice(0, UP_NEXT_COUNT).map(upNextCard).join("");
+    // up-next strip + grayed-out cards for filtered teams
+    lastResults = results;
+    applyFilter();
 
     const stamp = document.getElementById("updated");
     if (stamp) {
