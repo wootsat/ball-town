@@ -50,6 +50,13 @@ console).
   `id`/`homeAway` inline but `team` is a `$ref`. `seasonType` is a
   `$ref` ending in `/types/{n}`; type 1 = Preseason in the US leagues
   but **Regular Season in soccer**, so the preseason tag skips soccer.
+- Broadcast channels: `competitions[0].broadcasts` is a `$ref` to a
+  collection (one request per game). Each item has
+  `media.shortName` and `market.type` — `National`, `Home`, or `Away`
+  relative to the game's sides. The app shows National feeds plus the
+  feed for our team's side and drops the opponent's regional channel.
+  Zero broadcasts for a future game is normal (assigned late, e.g.
+  NFL preseason).
 - A team with zero events in the ~8-month window is a real state
   (leagues publish next season's schedule late) — that's the
   "Offseason" card, not a bug.
@@ -58,17 +65,39 @@ console).
 
 Follow README "Add a city". Pin `teamId` in `data/cities.js` — name
 resolution (`match`) still works but costs one request per league team
-on the core API, so it's a bootstrap convenience only. Verified ids for
-Minneapolis: Twins MLB 9, Lynx WNBA 8, Vikings NFL 16, United MLS
-17362, Timberwolves NBA 16, Wild NHL 30.
+on the core API, so it's a bootstrap convenience only. Also set
+`short` (nickname for chips/strip). Verified ids:
+
+- Minneapolis: Twins MLB 9, Lynx WNBA 8, Vikings NFL 16, United MLS
+  17362, Timberwolves NBA 16, Wild NHL 30.
+- Los Angeles: Dodgers MLB 19, Angels MLB 3, Sparks WNBA 6, Rams NFL
+  14, Chargers NFL 24, LAFC MLS 18966, Galaxy MLS 187, Lakers NBA 13,
+  Clippers NBA 12, Kings NHL 8, Ducks NHL 25.
 
 ## Gotchas
+
+- `.wrap{margin:0 auto}` does the horizontal centering. Section rules
+  (`.teams`, `.upnext`, `footer`, `.city-grid`) must set only
+  `margin-top`/`margin-bottom` — a `margin:X 0 Y` shorthand on the
+  same element resets the horizontal `auto` and glues the section to
+  the left edge on wide screens.
+- ESPN's broadcast market labels are unreliable: the opponent's own
+  stream is sometimes tagged with our market (e.g. Padres.TV marked
+  "Home" at Dodger Stadium). `fetchChannels` therefore also drops any
+  feed whose name contains the opponent's nickname.
 
 - Files are UTF-8 with en-dashes/middle dots ("Minneapolis–St. Paul",
   "MLB · Baseball"). Don't edit them with PowerShell
   `Get-Content`/`Set-Content` without explicit UTF-8 encoding — it
   mojibakes them. Use the Edit/Write tools.
-- All times render via `Intl.DateTimeFormat` with the city's `tz` from
-  config; never format dates in the viewer's local zone.
+- All times render via `Intl.DateTimeFormat` in the VIEWER's local
+  zone (no `timeZone` option), with the zone abbreviation from
+  `localTzLabel()`. The `tz`/`tzLabel` fields in `data/cities.js` are
+  currently unused (kept for a possible "city time" toggle).
+- The site is dark-theme only (`:root` palette + `color-scheme:dark`).
+  Team primary colors used as foreground are lifted toward white with
+  `color-mix(... var(--lift))` so near-black teams (Kings, LAFC) stay
+  visible — keep doing that for any new use of `--t1`/`--tc` as text
+  or icon color on dark backgrounds.
 - `sessionStorage` caches resolved team ids under `balltown:id:*` —
   clear it when testing resolution changes.

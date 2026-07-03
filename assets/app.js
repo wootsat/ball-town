@@ -86,6 +86,36 @@
     return String(hit.id);
   }
 
+  // Broadcast channels: national feeds plus our side's regional feed.
+  // The opponent's regional channel (market "Home"/"Away" on their
+  // side) is skipped — it isn't watchable from this city anyway.
+  async function fetchChannels(ev, game) {
+    try {
+      const comp = (ev.competitions && ev.competitions[0]) || {};
+      if (!comp.broadcasts || !comp.broadcasts.$ref) return [];
+      const data = await getJSON(comp.broadcasts.$ref);
+      const ourMarket = game.home ? "Home" : "Away";
+      // Opponent nickname, for catching mislabeled feeds (ESPN
+      // sometimes tags the opponent's own stream with our market,
+      // e.g. Padres.TV marked "Home" at Dodger Stadium).
+      const oppWords = (game.opponent || "").toLowerCase().split(/\s+/);
+      let oppNick = oppWords.pop() || "";
+      if (oppNick === "fc") oppNick = oppWords.pop() || "";
+      const names = [];
+      (data.items || []).forEach((b) => {
+        const market = b.market && b.market.type;
+        const name = b.media && (b.media.shortName || b.media.name);
+        if (!name) return;
+        if (market && market !== "National" && market !== ourMarket) return;
+        if (oppNick && name.toLowerCase().indexOf(oppNick) !== -1) return;
+        if (names.indexOf(name) === -1) names.push(name);
+      });
+      return names;
+    } catch (e) {
+      return []; // channel info is nice-to-have; never fail the card
+    }
+  }
+
   function toGame(ev, id, team) {
     const comp = (ev.competitions && ev.competitions[0]) || {};
     const sides = comp.competitors || [];
@@ -145,27 +175,82 @@
       candidates = ascending ? [first].concat(rest) : rest.concat([last]);
     }
 
-    const events = candidates
-      .map((ev) => toGame(ev, id, team))
-      .filter((ev) => !isNaN(ev.date) && ev.date > now)
-      .sort((a, b) => a.date - b.date);
-    return events.slice(0, GAMES_PER_TEAM);
+    const upcoming = candidates
+      .filter((ev) => {
+        const d = new Date(ev.date);
+        return !isNaN(d) && d > now;
+      })
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(0, GAMES_PER_TEAM);
+
+    // Channels only for the games we'll actually show (one extra
+    // request per game).
+    return Promise.all(
+      upcoming.map(async (ev) => {
+        const game = toGame(ev, id, team);
+        game.channels = await fetchChannels(ev, game);
+        return game;
+      })
+    );
   }
 
   // ---------- formatting ----------
 
+  // All times render in the VIEWER's local zone (no timeZone option),
+  // not the city's — a fan checking from elsewhere sees their own
+  // clock times.
   const fmtDate = new Intl.DateTimeFormat("en-US", {
-    weekday: "short", month: "short", day: "numeric", timeZone: city.tz
+    weekday: "short", month: "short", day: "numeric"
   });
   const fmtTime = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric", minute: "2-digit", timeZone: city.tz
+    hour: "numeric", minute: "2-digit"
   });
+
+  // Viewer's zone abbreviation ("CDT", "GMT+2", …) for the given
+  // date, so DST changes stay accurate.
+  function localTzLabel(d) {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+      .formatToParts(d);
+    const p = parts.find((x) => x.type === "timeZoneName");
+    return p ? p.value : "";
+  }
 
   // ---------- rendering ----------
 
-  // "Minnesota Wild" -> "Wild", "Minnesota United FC" -> "United"
+  // Chip / up-next label: the config's `short`, falling back to the
+  // full name for teams that haven't set one.
   function shortTeamName(team) {
-    return team.name.replace(/^Minnesota\s+/, "").replace(/\s+FC$/, "");
+    return team.short || team.name;
+  }
+
+  // Generic line icons per sport (keyed by the first segment of
+  // sportPath). Decorative only — always emitted with aria-hidden.
+  const SPORT_ICONS = {
+    baseball:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+      '<circle cx="12" cy="12" r="9"/>' +
+      '<path d="M8 4.9c2.6 4.4 2.6 9.8 0 14.2M16 4.9c-2.6 4.4-2.6 9.8 0 14.2"/></svg>',
+    basketball:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+      '<circle cx="12" cy="12" r="9"/>' +
+      '<path d="M3 12h18M12 3v18M5.6 5.6c3.5 3.5 3.5 9.3 0 12.8M18.4 5.6c-3.5 3.5-3.5 9.3 0 12.8"/></svg>',
+    football:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+      '<ellipse cx="12" cy="12" rx="9.5" ry="5.5" transform="rotate(-45 12 12)"/>' +
+      '<path d="M9 15l6-6M9.9 12.3l1.8 1.8M12.3 9.9l1.8 1.8"/></svg>',
+    hockey:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+      '<ellipse cx="12" cy="8.5" rx="8" ry="3.5"/>' +
+      '<path d="M4 8.5v6c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5v-6"/></svg>',
+    soccer:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<circle cx="12" cy="12" r="9"/>' +
+      '<path d="M12 8l3.4 2.5-1.3 4h-4.2l-1.3-4z"/>' +
+      '<path d="M12 8V3.2M15.4 10.5l4.4-1.6M14.1 14.5l2.7 3.8M9.9 14.5l-2.7 3.8M8.6 10.5L4.2 8.9"/></svg>'
+  };
+
+  function sportIcon(team) {
+    return SPORT_ICONS[team.sportPath.split("/")[0]] || "";
   }
 
   function gameRow(ev, team) {
@@ -175,6 +260,9 @@
       '<span class="g-opp"><span class="vs">' + (ev.home ? "vs" : "at") + "</span>" +
       ev.opponent +
       (ev.home ? '<span class="home-tag">Home</span>' : "") +
+      (ev.channels && ev.channels.length
+        ? '<span class="g-tv">' + ev.channels.join(", ") + "</span>"
+        : "") +
       "</span>" +
       '<span class="g-time">' + fmtTime.format(ev.date) + "</span>" +
       "</li>"
@@ -184,6 +272,7 @@
   function teamCard(team, events, error) {
     const head =
       '<div class="team-head">' +
+      '<span class="team-ic" aria-hidden="true">' + sportIcon(team) + "</span>" +
       '<div class="team-league">' + team.leagueLabel + "</div>" +
       '<div class="team-name">' + team.name + "</div>" +
       '<div class="team-venue">' + team.venue + "</div>" +
@@ -214,11 +303,15 @@
   function upNextCard(item) {
     return (
       '<div class="next-card" style="--tc:' + item.team.colors[0] + '">' +
+      '<span class="next-ic" aria-hidden="true">' + sportIcon(item.team) + "</span>" +
       '<div class="next-when">' + fmtDate.format(item.ev.date) + "</div>" +
       '<div class="next-team">' + shortTeamName(item.team) + "</div>" +
       '<div class="next-opp">' + (item.ev.home ? "vs " : "at ") + item.ev.opponent +
       (item.ev.home ? " · home" : "") + "</div>" +
-      '<div class="next-time">' + fmtTime.format(item.ev.date) + " " + city.tzLabel + "</div>" +
+      (item.ev.channels && item.ev.channels.length
+        ? '<div class="next-tv">' + item.ev.channels.join(", ") + "</div>"
+        : "") +
+      '<div class="next-time">' + fmtTime.format(item.ev.date) + " " + localTzLabel(item.ev.date) + "</div>" +
       "</div>"
     );
   }
@@ -236,7 +329,10 @@
           '" data-key="' + t.key +
           '" aria-pressed="' + !hiddenKeys.has(t.key) +
           '" style="--tc:' + t.colors[0] + '">' +
-          '<span class="chip-dot"></span>' + shortTeamName(t) + "</button>"
+          (sportIcon(t)
+            ? '<span class="chip-ic" aria-hidden="true">' + sportIcon(t) + "</span>"
+            : '<span class="chip-dot"></span>') +
+          shortTeamName(t) + "</button>"
       )
       .join("");
     el.addEventListener("click", (e) => {
@@ -312,12 +408,12 @@
 
     const stamp = document.getElementById("updated");
     if (stamp) {
+      const now = new Date();
       stamp.textContent =
         "Live data · loaded " +
         new Intl.DateTimeFormat("en-US", {
-          month: "short", day: "numeric", hour: "numeric",
-          minute: "2-digit", timeZone: city.tz
-        }).format(new Date()) + " " + city.tzLabel + " · refresh for latest";
+          month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+        }).format(now) + " " + localTzLabel(now) + " · refresh for latest";
     }
   }
 

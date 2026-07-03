@@ -65,8 +65,9 @@ League paths for `sportPath`:
   site, plan to move to a supported source (e.g. TheSportsDB premium)
   behind a small caching layer.
 - **Chatty API.** The core API returns event lists as `$ref` links, so
-  each team card costs one list request plus ~9 small event requests
-  (they run in parallel). A caching/build layer would collapse this.
+  each team card costs one list request, ~9 small event requests, and
+  one broadcasts request per shown game (all in parallel). A
+  caching/build layer would collapse this.
 - **Client-side fetching** means every visitor hits ESPN directly. Fine
   at low traffic; at scale, switch to a scheduled build step that
   fetches once and serves cached static pages.

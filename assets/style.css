@@ -1,9 +1,13 @@
+/* Dark theme (site default). --lift is white for mixing team colors
+   up to readable brightness on dark backgrounds. */
 :root{
-  --ice:#F0F3F6;
-  --frost:#FFFFFF;
-  --ink:#16222E;
-  --ink-soft:#5A6B7A;
-  --line:#D9E1E8;
+  --ice:#0D141D;
+  --frost:#161F2B;
+  --ink:#E9EEF3;
+  --ink-soft:#93A4B5;
+  --line:#283645;
+  --lift:#E9EEF3;
+  color-scheme:dark;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{
@@ -50,14 +54,17 @@ h1{
   transition:border-color .15s,opacity .15s;
 }
 .chip:hover{border-color:var(--ink-soft)}
-.chip-dot{width:10px;height:10px;border-radius:50%;background:var(--tc,var(--ink));flex:none}
+.chip-dot{width:10px;height:10px;border-radius:50%;background:color-mix(in srgb,var(--tc,var(--ink)) 65%,var(--lift));flex:none}
+.chip-ic{display:inline-flex;color:color-mix(in srgb,var(--tc,var(--ink)) 65%,var(--lift));flex:none}
+.chip-ic svg{width:14px;height:14px;display:block}
 .chip.is-off{opacity:.45;filter:grayscale(1)}
 .chip.is-off .chip-dot{background:var(--ink-soft)}
-.team.filtered{opacity:.35;filter:grayscale(1)}
+.chip.is-off .chip-ic{color:var(--ink-soft)}
+.team.filtered{display:none}
 .strip-empty{grid-column:1/-1;color:var(--ink-soft);font-size:14px;padding:6px 0}
 
 /* ---------- up next strip ---------- */
-.upnext{margin:36px 0 12px}
+.upnext{margin-top:36px;margin-bottom:12px}
 .strip-label{
   font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;
   letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);
@@ -70,19 +77,23 @@ h1{
   padding:12px 14px 14px;position:relative;overflow:hidden;
 }
 .next-card::before{
-  content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
-  background:var(--tc,var(--ink));
+  content:"";position:absolute;left:0;top:0;bottom:0;width:5px;
+  background:color-mix(in srgb,var(--tc,var(--ink)) 78%,var(--lift));
 }
+.next-ic{position:absolute;right:10px;top:10px;color:color-mix(in srgb,var(--tc,var(--ink)) 65%,var(--lift));opacity:.5;pointer-events:none}
+.next-ic svg{width:16px;height:16px;display:block}
 .next-when{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
 .next-team{
   font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;
-  text-transform:uppercase;line-height:1.05;margin:4px 0 2px;color:var(--tc,var(--ink));
+  text-transform:uppercase;line-height:1.05;margin:4px 0 2px;
+  color:color-mix(in srgb,var(--tc,var(--ink)) 55%,var(--lift));
 }
 .next-opp{font-size:14px;font-weight:500}
+.next-tv{font-size:12px;color:var(--ink-soft);margin-top:2px}
 .next-time{font-size:13px;color:var(--ink-soft);margin-top:6px}
 
 /* ---------- team cards ---------- */
-.teams{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:44px 0 8px}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:44px;margin-bottom:8px}
 .loading,.load-error{grid-column:1/-1;color:var(--ink-soft);padding:24px 0}
 .team{
   background:var(--frost);border:1px solid var(--line);border-radius:14px;
@@ -90,10 +101,17 @@ h1{
 }
 .team-head{
   padding:18px 20px 14px;
-  border-bottom:3px solid var(--t2,var(--line));
+  border-bottom:6px solid var(--t2,var(--line));
   background:var(--t1,var(--ink));
   color:#fff;
+  position:relative;overflow:hidden;
 }
+.team-ic{
+  position:absolute;right:14px;top:50%;transform:translateY(-50%);
+  color:#fff;opacity:.16;pointer-events:none;
+}
+.team-ic svg{width:64px;height:64px;display:block}
+.team.off .team-ic{color:color-mix(in srgb,var(--t1) 60%,var(--lift));opacity:.15}
 .team-league{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;opacity:.75}
 .team-name{
   font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;
@@ -110,16 +128,17 @@ h1{
 .g-opp{font-weight:500}
 .g-opp .vs{color:var(--ink-soft);font-weight:400;margin-right:4px}
 .g-time{font-size:14px;color:var(--ink-soft);white-space:nowrap}
+.g-tv{display:block;font-size:12px;color:var(--ink-soft);margin-top:1px}
 .home-tag{
   display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;
   padding:1px 6px;border-radius:4px;margin-left:8px;vertical-align:1px;
-  background:var(--t1);color:#fff;text-transform:uppercase;
+  background:color-mix(in srgb,var(--t1) 78%,var(--lift));color:#fff;text-transform:uppercase;
 }
 
 /* offseason / error state */
 .team.off .team-head{background:var(--frost);color:var(--ink);border-bottom-color:var(--line)}
 .team.off .team-league{color:var(--ink-soft);opacity:1}
-.team.off .team-name{color:var(--t1)}
+.team.off .team-name{color:color-mix(in srgb,var(--t1) 55%,var(--lift))}
 .team.off .team-venue{color:var(--ink-soft);opacity:1}
 .off-body{
   padding:22px 20px 26px;color:var(--ink-soft);font-size:15px;flex:1;
@@ -132,7 +151,7 @@ h1{
 }
 
 /* ---------- index (city list) ---------- */
-.city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin:36px 0}
+.city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin-top:36px;margin-bottom:36px}
 .city-card{
   display:block;background:var(--frost);border:1px solid var(--line);border-radius:14px;
   padding:22px;text-decoration:none;transition:border-color .15s;
@@ -145,7 +164,7 @@ h1{
 .city-card p{margin-top:6px;font-size:14px;color:var(--ink-soft)}
 
 footer{
-  margin:40px 0 48px;padding-top:18px;border-top:1px solid var(--line);
+  margin-top:40px;margin-bottom:48px;padding-top:18px;border-top:1px solid var(--line);
   font-size:13px;color:var(--ink-soft);
   display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
 }
