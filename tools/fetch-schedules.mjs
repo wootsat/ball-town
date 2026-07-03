@@ -76,24 +76,30 @@ function toGame(ev, id, team) {
 async function channelsFor(ev, game) {
   try {
     const comp = (ev.competitions && ev.competitions[0]) || {};
-    if (!comp.broadcasts || !comp.broadcasts.$ref) return [];
+    if (!comp.broadcasts || !comp.broadcasts.$ref) return { names: [], national: false };
     const data = await getJSON(comp.broadcasts.$ref);
     const ourMarket = game.home ? "Home" : "Away";
     const words = (game.opponent || "").toLowerCase().split(/\s+/);
     let oppNick = words.pop() || "";
     if (oppNick === "fc") oppNick = words.pop() || "";
     const names = [];
+    let national = false;
     (data.items || []).forEach((b) => {
       const market = b.market && b.market.type;
+      const type = b.type && b.type.shortName;
       const name = b.media && (b.media.shortName || b.media.name);
       if (!name) return;
+      // "National TV" = a national-market TV broadcast (ESPN, FOX, NBC,
+      // MLB Net…). Excludes the always-on league streaming packages
+      // (MLB.TV, League Pass = type "Streaming") and radio.
+      if (market === "National" && type === "TV") national = true;
       if (market && market !== "National" && market !== ourMarket) return;
       if (oppNick && name.toLowerCase().indexOf(oppNick) !== -1) return;
       if (names.indexOf(name) === -1) names.push(name);
     });
-    return names;
+    return { names: names, national: national };
   } catch (e) {
-    return [];
+    return { names: [], national: false };
   }
 }
 
@@ -133,10 +139,11 @@ async function fetchUpcoming(team) {
   return Promise.all(
     upcoming.map(async (ev) => {
       const game = toGame(ev, id, team);
-      const channels = await channelsFor(ev, game);
+      const bc = await channelsFor(ev, game);
       const out = { date: game.date.toISOString(), home: game.home, opponent: game.opponent };
       if (game.label) out.label = game.label;
-      if (channels.length) out.channels = channels;
+      if (bc.names.length) out.channels = bc.names;
+      if (bc.national) out.national = true;
       return out;
     })
   );

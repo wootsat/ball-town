@@ -56,6 +56,7 @@
       home: g.home,
       opponent: g.opponent,
       label: g.label || null,
+      national: !!g.national,
       channels: g.channels || []
     }));
     return games;
@@ -145,6 +146,8 @@
       '<span class="g-opp"><span class="vs">' + (ev.home ? "vs" : "at") + "</span>" +
       ev.opponent +
       (ev.home ? '<span class="home-tag">Home</span>' : "") +
+      (ev.label ? '<span class="g-tag g-tag-pre">' + ev.label + "</span>" : "") +
+      (ev.national ? '<span class="g-tag g-tag-nat">Nat\'l TV</span>' : "") +
       (live ? '<span class="g-score">' + live.us + "–" + live.them + "</span>" : "") +
       (ev.channels && ev.channels.length
         ? '<span class="g-tv">' + ev.channels.join(", ") + "</span>"

@@ -106,6 +106,13 @@ endpoint drops preseason/next-season games inconsistently per league.
   feed for our team's side and drops the opponent's regional channel
   (`channelsFor`). Zero broadcasts for a future game is normal (assigned
   late, e.g. NFL preseason).
+- Each broadcast item also has `type.shortName` ("TV" / "Streaming" /
+  "Radio"). The **"Nat'l TV"** tag flags games with a `market:National`
+  **and** `type:TV` broadcast — this excludes the always-on league
+  streaming packages (MLB.TV, League Pass are `Streaming`) that would
+  otherwise mark nearly every game national. Stored as `national:true`
+  in schedules.json; app.js renders it (and the `label:"Preseason"` tag)
+  as small pills in the game row.
 - A team with zero events in the ~8-month window is a real state
   (leagues publish next season's schedule late) — that's the
   "Offseason" card, not a bug.

@@ -179,6 +179,13 @@ h1{
   padding:1px 6px;border-radius:4px;margin-left:8px;vertical-align:1px;
   background:color-mix(in srgb,var(--t1) 78%,var(--lift));color:#fff;text-transform:uppercase;
 }
+.g-tag{
+  display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;padding:1px 6px;border-radius:4px;margin-left:6px;
+  vertical-align:1px;border:1px solid var(--line);white-space:nowrap;
+}
+.g-tag-pre{color:var(--ink-soft)}
+.g-tag-nat{color:#6AA0FF;border-color:#2F6DF0}
 
 /* offseason / error state */
 .team.off .team-head{background:var(--frost);color:var(--ink);border-bottom-color:var(--line)}
