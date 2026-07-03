@@ -74,6 +74,46 @@ on the core API, so it's a bootstrap convenience only. Also set
   14, Chargers NFL 24, LAFC MLS 18966, Galaxy MLS 187, Lakers NBA 13,
   Clippers NBA 12, Kings NHL 8, Ducks NHL 25.
 
+## Installable web app (Add to Home Screen)
+
+- Each city is its own installable PWA. Home-screen name is
+  `ball.town <ABBR>` — set in **two** places per city that must agree:
+  `apple-mobile-web-app-title` meta (iOS reads this) and the manifest
+  `name`/`short_name` (Android reads this). iOS ignores the manifest
+  name; Android ignores the meta.
+- Manifests are static per-city files (`city/<slug>.webmanifest`) with
+  relative icon/start_url paths that resolve against the manifest's own
+  `/city/` location. Icons are shared PNGs in `assets/icons/`
+  (192/512 + 512 maskable for Android, 180 apple-touch-icon for iOS) —
+  Android install requires valid 192+512 icons or it won't offer.
+- `initInstallPrompt()` in app.js shows a dismissible bottom banner on
+  mobile only: Android via the `beforeinstallprompt` event (real
+  install button); iOS Safari via static instructions (Share → Add to
+  Home Screen) since iOS has no programmatic install. Dismissal is
+  remembered in `localStorage` (`balltown:a2hs-dismissed`); hidden when
+  already running standalone. Can't be exercised in the localhost
+  preview (needs real mobile UA + HTTPS) — verify on a phone.
+- `assets/icons/*.png` are dependency-free generated placeholders (see
+  scratchpad `genicons.py` approach); replace with real art at the same
+  filenames/sizes.
+
+## Sticky mobile header
+
+- `initStickyHeader()` injects a `.ministicky` bar (fixed, top) that
+  slides in once the page's `.topbar` scrolls out of view. Shows
+  `ball.town <abbr> · All cities`, where `abbr` comes from
+  `data/cities.js` (`abbr: "MSP"` etc.). CSS gates it to `max-width:720px`
+  (mobile only) — desktop keeps `display:none`.
+- Note: `abbr` (cities.js) drives the sticky header; the *installed app*
+  name is still the static `apple-mobile-web-app-title` meta + manifest
+  `short_name`. Keep all three consistent per city.
+- The scroll toggle uses a `scroll` listener + `requestAnimationFrame`.
+  The offscreen dev-preview pauses scroll events, rAF, and CSS
+  transitions, so the slide-in can't be exercised there — verify the
+  animation on a real device / visible tab. The CSS override
+  (`.ministicky.show{transform:none}`) and layout are testable
+  statically (disable the transition, toggle the class).
+
 ## Gotchas
 
 - `.wrap{margin:0 auto}` does the horizontal centering. Section rules

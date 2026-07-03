@@ -45,7 +45,16 @@ server is more reliable.)
 2. Copy `city/minneapolis.html` to `city/<slug>.html` and change
    `data-city="<slug>"` on the `<body>` tag (and the fallback text in
    `<h1>`/`<title>`).
-3. Add a card for it in `index.html`.
+3. Copy `city/minneapolis.webmanifest` to `city/<slug>.webmanifest`,
+   and in the new HTML update the `<link rel="manifest">` href, the
+   `apple-mobile-web-app-title`, and the manifest's `name` /
+   `short_name` / `start_url`. The home-screen app name convention is
+   `ball.town <ABBR>` (a 3-letter code for the metro, e.g. `MSP`,
+   `LAX`).
+4. Add a card for it in `index.html`.
+
+The app icons in `assets/icons/` are shared across all cities — no
+per-city icon work. See `assets/icons/README.md` to swap in real art.
 
 League paths for `sportPath`:
 

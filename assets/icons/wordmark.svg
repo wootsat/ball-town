@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&amp;display=swap');
+      .wm { font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight: 700; }
+    </style>
+  </defs>
+  <rect width="512" height="512" fill="#0D141D"/>
+  <text class="wm" x="256" y="256" text-anchor="middle" dominant-baseline="central"
+        font-size="150" textLength="392" lengthAdjust="spacingAndGlyphs" letter-spacing="1">
+    <tspan fill="#E9EEF3">ball</tspan><tspan fill="#93A4B5">.town</tspan>
+  </text>
+</svg>

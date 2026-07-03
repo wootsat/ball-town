@@ -3,6 +3,8 @@
 // Add a new city by adding an entry here and creating
 // city/<slug>.html (copy an existing page and change data-city).
 //
+// abbr      = 3-letter city code shown in the sticky mobile header and
+//             the installable-app name ("ball.town <abbr>")
 // sportPath = ESPN API path: <sport>/<league>
 // teamId    = the team's ESPN id (preferred — avoids a slow
 //             per-team league scan on first load)
@@ -17,6 +19,7 @@ window.BALLTOWN = {
     "minneapolis": {
       name: "Minneapolis–St. Paul",
       shortName: "Minneapolis",
+      abbr: "MSP",
       tz: "America/Chicago",
       tzLabel: "CT",
       teams: [
@@ -92,6 +95,7 @@ window.BALLTOWN = {
     "los-angeles": {
       name: "Los Angeles",
       shortName: "Los Angeles",
+      abbr: "LAX",
       tz: "America/Los_Angeles",
       tzLabel: "PT",
       teams: [

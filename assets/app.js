@@ -372,6 +372,168 @@
       : '<p class="strip-empty">All teams are hidden — tap a team above to bring them back.</p>';
   }
 
+  // ---------- add-to-home-screen prompt (mobile only) ----------
+
+  function initInstallPrompt() {
+    // Already running as an installed app? Nothing to prompt.
+    const standalone =
+      (window.matchMedia &&
+        window.matchMedia("(display-mode: standalone)").matches) ||
+      window.navigator.standalone === true;
+    if (standalone) return;
+
+    const DISMISS_KEY = "balltown:a2hs-dismissed";
+    try {
+      if (localStorage.getItem(DISMISS_KEY)) return;
+    } catch (e) {
+      /* private mode — just proceed without persistence */
+    }
+
+    const ua = navigator.userAgent || "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+      // iPadOS 13+ reports as Mac; detect via touch.
+      (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/.test(ua);
+    if (!isIOS && !isAndroid) return; // desktop: no prompt
+    // On iOS only Safari can add to the home screen; in-app / other
+    // browsers can't, so don't give them dead instructions.
+    const iosCantInstall = isIOS && /CriOS|FxiOS|EdgiOS|GSA/.test(ua);
+    if (iosCantInstall) return;
+
+    const appName =
+      (document.querySelector('meta[name="apple-mobile-web-app-title"]') || {})
+        .content || "this page";
+
+    const shareGlyph =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M12 15V3M8.5 6.5 12 3l3.5 3.5"/>' +
+      '<path d="M6 12H5a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2h-1"/></svg>';
+    const plusGlyph =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+
+    let deferred = null;
+
+    function removeBanner(remember) {
+      const bar = document.getElementById("a2hs");
+      if (bar) {
+        bar.classList.remove("in");
+        setTimeout(() => bar.remove(), 250);
+      }
+      if (remember) {
+        try {
+          localStorage.setItem(DISMISS_KEY, "1");
+        } catch (e) {
+          /* ignore */
+        }
+      }
+    }
+
+    function showBanner(kind) {
+      if (document.getElementById("a2hs")) return;
+      const bar = document.createElement("div");
+      bar.id = "a2hs";
+      bar.className = "a2hs";
+      bar.setAttribute("role", "dialog");
+      bar.setAttribute("aria-label", "Add to home screen");
+
+      const body =
+        kind === "android"
+          ? '<div class="a2hs-text"><b>' + appName + "</b>" +
+            "<span>Add it to your home screen for one-tap access.</span></div>" +
+            '<button type="button" class="a2hs-add">Install</button>'
+          : '<div class="a2hs-text"><b>' + appName + "</b>" +
+            '<span>Tap <span class="a2hs-ic">' + shareGlyph +
+            "</span> then <b>Add to Home Screen</b> <span class=\"a2hs-ic\">" +
+            plusGlyph + "</span></span></div>";
+
+      bar.innerHTML =
+        '<div class="a2hs-inner">' + body +
+        '<button type="button" class="a2hs-x" aria-label="Dismiss">&times;</button>' +
+        "</div>";
+      document.body.appendChild(bar);
+      requestAnimationFrame(() => bar.classList.add("in"));
+
+      bar.querySelector(".a2hs-x").addEventListener("click", () =>
+        removeBanner(true)
+      );
+      const addBtn = bar.querySelector(".a2hs-add");
+      if (addBtn) {
+        addBtn.addEventListener("click", async () => {
+          if (!deferred) return removeBanner(true);
+          deferred.prompt();
+          try {
+            await deferred.userChoice;
+          } catch (e) {
+            /* ignore */
+          }
+          deferred = null;
+          removeBanner(true);
+        });
+      }
+    }
+
+    // Android / Chromium: the browser tells us when it's installable.
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferred = e;
+      showBanner("android");
+    });
+    window.addEventListener("appinstalled", () => removeBanner(true));
+
+    // iOS Safari never fires beforeinstallprompt — show instructions.
+    if (isIOS) setTimeout(() => showBanner("ios"), 1500);
+  }
+
+  // ---------- sticky mini-header (mobile) ----------
+  // Slides in a compact "ball.town <ABBR> · All cities" bar once the
+  // page's main header scrolls out of view. CSS shows it on mobile
+  // only; the scroll wiring is harmless on desktop (display:none).
+
+  function initStickyHeader() {
+    const bar = document.createElement("div");
+    bar.className = "ministicky";
+    bar.innerHTML =
+      '<div class="ministicky-in">' +
+      '<a class="brand2" href="../index.html">ball<span>.town</span>' +
+      (city.abbr ? ' <span class="abbr">' + city.abbr + "</span>" : "") +
+      "</a>" +
+      '<a class="crumb" href="../index.html">All cities</a>' +
+      "</div>";
+    document.body.appendChild(bar);
+
+    let trigger = 120;
+    let ticking = false;
+    function measure() {
+      const tb = document.querySelector("header .topbar");
+      if (tb) {
+        const r = tb.getBoundingClientRect();
+        trigger = r.bottom + window.scrollY; // absolute Y where brand exits
+      }
+    }
+    function update() {
+      bar.classList.toggle("show", window.scrollY > trigger);
+      ticking = false;
+    }
+    measure();
+    update();
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (!ticking) {
+          ticking = true;
+          requestAnimationFrame(update);
+        }
+      },
+      { passive: true }
+    );
+    window.addEventListener("resize", () => {
+      measure();
+      update();
+    });
+  }
+
   // ---------- boot ----------
 
   async function main() {
@@ -417,5 +579,7 @@
     }
   }
 
+  initInstallPrompt();
+  initStickyHeader();
   main();
 })();
