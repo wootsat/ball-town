@@ -8,23 +8,18 @@ NHL, MLS, and WNBA teams, grouped by metro area.
 - Plain static site — no framework, no API key, nothing to serve but
   files. City pages are generated from config by a tiny dependency-free
   Node script (`tools/build.mjs`); the generated files are committed, so
-  the host just serves static HTML (GitHub Pages does not run the
-  script).
-- Each city page fetches upcoming schedules **live in the browser** from
-  ESPN's public (unofficial) API on every page load. Refreshing the
-  browser refreshes the data.
-- Data comes from `sports.core.api.espn.com` — the only ESPN API host
-  that sends CORS headers. The friendlier `site.api.espn.com` /
-  `site.web.api.espn.com` hosts return richer JSON but are blocked for
-  cross-origin browser fetches, so they can't be used from a static
-  page.
-- `data/cities.js` is the single source of truth for cities and teams.
-- Each team should pin its ESPN `teamId`. If it's missing, the id is
-  resolved by name at runtime, but on the core API that costs one
-  request per team in the league (the team list is just `$ref` links),
-  so treat name resolution as a bootstrap convenience: load the page
-  once, grab the resolved id from session storage or the network tab,
-  and pin it.
+  the host just serves static files.
+- Schedules are **precomputed once a day** into `data/schedules.json` by
+  `tools/fetch-schedules.mjs` (run in CI). The browser reads that one
+  small file — it never calls ESPN directly. This decouples ESPN load
+  from visitor count, so the site scales to any traffic.
+- The daily fetcher pulls from `sports.core.api.espn.com` server-side.
+  (It's the host the browser used to be limited to for CORS reasons;
+  server-side CORS is moot, but it's kept as the source of truth because
+  the richer `site.api.espn.com` `/schedule` endpoint drops preseason /
+  next-season games inconsistently across leagues.)
+- `data/cities.js` is the single source of truth for cities and teams;
+  each team pins its ESPN `teamId`.
 
 ## Run it locally
 
@@ -77,25 +72,56 @@ League paths for `sportPath`:
 | NHL    | hockey/nhl       |
 | MLS    | soccer/usa.1     |
 
+## Schedule data (the daily cache)
+
+`data/schedules.json` is a **generated file** — the cache every visitor
+reads. Rebuild it with:
+
+```bash
+npm run fetch     # or: node tools/fetch-schedules.mjs
+```
+
+It hits ESPN once per team (server-side) and writes the upcoming games +
+channels the client renders. In production this runs automatically via
+`.github/workflows/refresh.yml` (daily cron), which commits the updated
+`schedules.json`; the push triggers a Cloudflare Pages redeploy. You can
+also trigger it manually from the repo's **Actions** tab. Never hand-edit
+`data/schedules.json`.
+
 ## Known limitations / roadmap
 
 - **Unofficial data source.** ESPN's endpoints are undocumented and
   could change without notice. If this project grows beyond a hobby
-  site, plan to move to a supported source (e.g. TheSportsDB premium)
-  behind a small caching layer.
-- **Chatty API.** The core API returns event lists as `$ref` links, so
-  each team card costs one list request, ~9 small event requests, and
-  one broadcasts request per shown game (all in parallel). A
-  caching/build layer would collapse this.
-- **Client-side fetching** means every visitor hits ESPN directly. Fine
-  at low traffic; at scale, switch to a scheduled build step that
-  fetches once and serves cached static pages.
-- Some leagues' schedule endpoints only return the current season
-  segment — offseason teams correctly show an "Offseason" state.
+  site, plan to move to a supported source (e.g. TheSportsDB premium).
+  The daily fetcher is the one place that touches ESPN, so it's the only
+  thing that would need swapping.
+- **Data is up to ~24h stale** (daily refresh). Fine for upcoming
+  schedules; live in-game scores would need a separate near-real-time
+  layer (see the `live` overlay hooks in app.js — currently dummy data).
+- Some leagues publish next season's schedule late — offseason teams
+  correctly show an "Offseason" state.
 - Not yet done: remaining metro areas (TV/broadcast info is in),
-  ticket links, per-league filtering.
+  ticket links, per-league filtering, real live scores.
 
 ## Deploying
 
-It's a static site — GitHub Pages, Netlify, Cloudflare Pages, or any
-static host works as-is.
+Hosted on **Cloudflare Pages** (unmetered bandwidth → scales to large
+traffic on the free tier), serving the domain **ball.town**. Source
+stays on GitHub; Cloudflare Pages is connected to the repo and
+auto-deploys on push to `main`.
+
+Cloudflare Pages project settings:
+
+- Framework preset: **None**
+- Build command: **(empty)** — pages are pre-generated and committed
+  (see "Add a city"); Cloudflare just serves the repo
+- Build output directory: **/** (repo root)
+- Production branch: **main**
+
+DNS for ball.town is managed by Cloudflare (nameservers pointed there),
+so the apex domain + HTTPS are handled automatically via the Pages
+"Custom domains" tab.
+
+All asset paths are relative, so the site also works unchanged from a
+subpath (e.g. GitHub Pages at `/ball-town/`) if you ever need a
+fallback host.

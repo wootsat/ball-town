@@ -1,10 +1,12 @@
 # ball.town
 
-Static site showing live pro-sports schedules per metro area, fetched
-client-side from ESPN's unofficial API. No framework, no runtime deps,
-no API key. Plain ES5-style client JS (IIFE, string concat — no modules,
-no transpiling). City pages are generated from config by a small Node
-script; the output is committed and served statically.
+Static site showing pro-sports schedules per metro area. Schedules are
+precomputed once a day from ESPN's unofficial API into a static JSON
+cache; the browser reads that cache and never calls ESPN. No framework,
+no runtime deps, no API key. Plain ES5-style client JS (IIFE, string
+concat — no modules, no transpiling). City pages are generated from
+config by a small Node script; all output is committed and served
+statically (Cloudflare Pages, domain ball.town).
 
 ## Layout
 
@@ -13,26 +15,34 @@ script; the output is committed and served statically.
   `module.exports` lets the generator import it in Node.
 - `tools/city.template.html` — the one city-page skeleton. Edit this to
   change structure for every city.
-- `tools/build.mjs` — generator: writes `city/<slug>.html` +
+- `tools/build.mjs` — page generator: writes `city/<slug>.html` +
   `city/<slug>.webmanifest` per city and rebuilds the `index.html` cards
   between the `CITIES:START`/`CITIES:END` markers.
+- `tools/fetch-schedules.mjs` — data fetcher: hits ESPN once per team
+  (server-side) and writes `data/schedules.json`, the cache the browser
+  reads. Ports the exact core-API logic the client used to run live.
+- `data/schedules.json` — **generated; never hand-edit.** The daily
+  schedule cache, keyed by `<sportPath>:<teamId>`. Committed and served.
+- `.github/workflows/refresh.yml` — daily cron: runs the fetcher,
+  commits `schedules.json`, which triggers a Cloudflare Pages redeploy.
 - `city/<slug>.html`, `city/<slug>.webmanifest` — **generated; never
   hand-edit** (they carry a "GENERATED FILE" banner). `data-city` on
   `<body>` selects the config entry.
 - `index.html` — city picker; cards between the markers are generated.
-- `assets/app.js` — all fetch + render logic (client-side).
+- `assets/app.js` — client render logic + one fetch of `schedules.json`.
 - `assets/style.css` — all styling.
 
-## Build (generating pages)
+## Two pipelines: pages (structure) and data (schedules)
 
-```
-npm run build     # or: node tools/build.mjs
-```
+- **Pages** — `npm run build` (`tools/build.mjs`). Run after editing
+  `data/cities.js` or `tools/city.template.html`; commit the regenerated
+  `city/*` + `index.html`. Editing `assets/*.js|css` needs no rebuild.
+- **Data** — `npm run fetch` (`tools/fetch-schedules.mjs`). Rebuilds
+  `data/schedules.json`. Runs daily in CI; run locally if you want fresh
+  data now. Adding a city = one config entry, then **both** `build`
+  (new page) and `fetch` (new team schedules).
 
-Run after editing `data/cities.js` or `tools/city.template.html`, then
-commit the regenerated files. GitHub Pages does NOT run this — it serves
-the committed output. Editing `assets/*.js|css` needs no rebuild.
-Adding a city = one config entry + a rebuild.
+Nothing runs on the host — Cloudflare Pages just serves committed files.
 
 ## Run / verify
 
@@ -41,18 +51,23 @@ python -m http.server 8000
 # open http://localhost:8000/city/minneapolis.html
 ```
 
-There are no tests. Verify by loading the page: every team card should
-show either upcoming games, an "Offseason" pill (legitimately empty
-schedule), or an "Unavailable" pill (a fetch failed — check the
-console).
+There are no tests. Verify by loading the page: the network tab should
+show **one** request to `data/schedules.json` and **zero** to espn.com.
+Every team card shows upcoming games, an "Offseason" pill (empty
+schedule), or an "Unavailable" pill (team missing from the cache).
 
 ## ESPN API — hard-won constraints (July 2026)
 
-- **Only `sports.core.api.espn.com` sends CORS headers.** The richer
-  `site.api.espn.com` and `site.web.api.espn.com` hosts return valid
-  JSON to curl but browsers cannot fetch them cross-origin (no
-  `Access-Control-Allow-Origin`, no JSONP). Do not "simplify" back to
-  them without re-testing CORS in a real browser.
+Only `tools/fetch-schedules.mjs` (server-side, daily) touches ESPN now —
+the browser reads the static cache. The core-API notes below still apply
+to the fetcher; CORS no longer matters (server-side) but the core API
+stays the source of truth because the richer `site.api` `/schedule`
+endpoint drops preseason/next-season games inconsistently per league.
+
+- **Only `sports.core.api.espn.com` sent CORS headers** (why the browser
+  was limited to it; moot now but the fetcher still uses it). The richer
+  `site.api.espn.com` / `site.web.api.espn.com` hosts return valid JSON
+  to curl but browsers cannot fetch them cross-origin.
 - Core API URL shape: `/v2/sports/{sport}/leagues/{league}/...` — note
   the extra `leagues/` segment vs. the `sportPath` config values
   ("baseball/mlb"). `leaguePath()` in app.js does the conversion.
@@ -62,8 +77,8 @@ console).
 - Team events: `/teams/{id}/events?dates=YYYYMMDD-YYYYMMDD&limit=N`
   works without a season segment and is date-filtered server-side.
   **The sort direction varies by league** (MLB ascending, MLS
-  descending), and no `sort` param is honored — app.js probes the first
-  and last ref to detect direction.
+  descending), and no `sort` param is honored — the fetcher probes the
+  first and last ref to detect direction.
 - Event objects: `name` is always "Away Team at Home Team" (all
   leagues, including soccer); `competitions[0].competitors[*]` has
   `id`/`homeAway` inline but `team` is a `$ref`. `seasonType` is a
@@ -72,22 +87,22 @@ console).
 - Broadcast channels: `competitions[0].broadcasts` is a `$ref` to a
   collection (one request per game). Each item has
   `media.shortName` and `market.type` — `National`, `Home`, or `Away`
-  relative to the game's sides. The app shows National feeds plus the
-  feed for our team's side and drops the opponent's regional channel.
-  Zero broadcasts for a future game is normal (assigned late, e.g.
-  NFL preseason).
+  relative to the game's sides. The fetcher keeps National feeds plus the
+  feed for our team's side and drops the opponent's regional channel
+  (`channelsFor`). Zero broadcasts for a future game is normal (assigned
+  late, e.g. NFL preseason).
 - A team with zero events in the ~8-month window is a real state
   (leagues publish next season's schedule late) — that's the
   "Offseason" card, not a bug.
 
 ## Adding cities / teams
 
-Edit `data/cities.js` (one entry) then `npm run build` — see README
-"Add a city". Pin `teamId` — name resolution (`match`) still works but
-costs one request per league team on the core API, so it's a bootstrap
-convenience only. Also set `short` (chips/strip nickname) and `abbr`
-(home-screen code). All pinned ids live in `data/cities.js` (10 metros
-as of this writing).
+Edit `data/cities.js` (one entry), then `npm run build` (page) **and**
+`npm run fetch` (schedules) — see README "Add a city". Pin `teamId`
+(the fetcher keys off it; there's no runtime name-resolution fallback
+anymore). Also set `short` (chips/strip nickname) and `abbr` (home-screen
+code). All pinned ids live in `data/cities.js` (10 metros as of this
+writing).
 
 Bulk-resolving ids/colors/venues (for adding many markets at once):
 don't use the CORS-only core API — hit the richer **`site.api.espn.com`
@@ -156,8 +171,8 @@ schedule.
   the left edge on wide screens.
 - ESPN's broadcast market labels are unreliable: the opponent's own
   stream is sometimes tagged with our market (e.g. Padres.TV marked
-  "Home" at Dodger Stadium). `fetchChannels` therefore also drops any
-  feed whose name contains the opponent's nickname.
+  "Home" at Dodger Stadium). `channelsFor` (in the fetcher) therefore
+  also drops any feed whose name contains the opponent's nickname.
 
 - Files are UTF-8 with en-dashes/middle dots ("Minneapolis–St. Paul",
   "MLB · Baseball"). Don't edit them with PowerShell

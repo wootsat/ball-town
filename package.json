@@ -4,6 +4,7 @@
   "private": true,
   "description": "Live pro-sports schedules per metro area. Static site; pages generated from data/cities.js.",
   "scripts": {
-    "build": "node tools/build.mjs"
+    "build": "node tools/build.mjs",
+    "fetch": "node tools/fetch-schedules.mjs"
   }
 }

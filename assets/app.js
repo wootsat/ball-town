@@ -1,24 +1,15 @@
 // ============================================================
-// ball.town — live schedule loader
-// Fetches upcoming games from ESPN's public (unofficial) API
-// on every page load. Refresh the browser = fresh data.
-//
-// Uses sports.core.api.espn.com — the only ESPN API host that
-// sends CORS headers, so it's the only one browsers can call
-// directly (site.api.espn.com / site.web.api.espn.com are
-// blocked for cross-origin pages).
+// ball.town — schedule renderer
+// Reads a daily-refreshed static cache (data/schedules.json, built by
+// tools/fetch-schedules.mjs) and renders it. No live ESPN calls from
+// the browser — one small same-origin fetch per page load — so ESPN
+// load is decoupled from visitor count.
 // ============================================================
 
 (function () {
-  const API = "https://sports.core.api.espn.com/v2/sports";
-  const GAMES_PER_TEAM = 7;
   const UP_NEXT_COUNT = 5;
-  // How far ahead to look for games. Wide enough to bridge any
-  // offseason gap (NFL's Feb–Aug is the longest).
-  const WINDOW_DAYS = 240;
-  // Extra events fetched beyond GAMES_PER_TEAM so games earlier
-  // today (already started, filtered out below) don't leave gaps.
-  const FETCH_MARGIN = 2;
+  // The daily static cache the browser reads instead of calling ESPN.
+  const SCHEDULES_URL = "../data/schedules.json";
   // TEMP — fake "live" scores to preview the design (score + game
   // state, e.g. "Bot 7" or "3Q 3:46"). Set to false or delete once
   // real live data lands. Tags each team's first upcoming game.
@@ -43,159 +34,31 @@
   }
   let lastResults = [];
 
-  // ---------- data fetching ----------
+  // ---------- schedule data (daily static cache) ----------
+  // Games are precomputed once a day by tools/fetch-schedules.mjs into
+  // data/schedules.json; the browser just reads that one file — no live
+  // ESPN calls. Keyed by "<sportPath>:<teamId>".
 
-  async function getJSON(url) {
-    // $ref links come back as http:// — upgrade so the site also
-    // works when served over https.
-    const res = await fetch(url.replace(/^http:/, "https:"));
-    if (!res.ok) throw new Error("HTTP " + res.status + " for " + url);
+  async function loadSchedules() {
+    // no-cache => revalidate so the daily refresh shows up without a
+    // hard reload (a 304 is cheap when nothing changed).
+    const res = await fetch(SCHEDULES_URL, { cache: "no-cache" });
+    if (!res.ok) throw new Error("HTTP " + res.status + " for schedules.json");
     return res.json();
   }
 
-  // "baseball/mlb" (config) -> "baseball/leagues/mlb" (core API path)
-  function leaguePath(sportPath) {
-    const parts = sportPath.split("/");
-    return parts[0] + "/leagues/" + parts[1];
-  }
-
-  function yyyymmdd(d) {
-    return d.toISOString().slice(0, 10).replace(/-/g, "");
-  }
-
-  // Find the team's ESPN id by name match (cached per session).
-  // The core API's team list is just $ref links, so this costs one
-  // request per team in the league — prefer pinning teamId in
-  // data/cities.js and keeping this as a fallback.
-  async function resolveTeamId(team) {
-    if (team.teamId) return String(team.teamId);
-    const cacheKey = "balltown:id:" + team.sportPath + ":" + team.match;
-    const cached = sessionStorage.getItem(cacheKey);
-    if (cached) return cached;
-
-    const list = await getJSON(
-      API + "/" + leaguePath(team.sportPath) + "/teams?limit=400"
-    );
-    const teams = await Promise.all(
-      (list.items || []).map((item) => getJSON(item.$ref))
-    );
-    const needle = team.match.toLowerCase();
-    const hit = teams.find(
-      (t) =>
-        (t.displayName || "").toLowerCase().includes(needle) ||
-        (t.shortDisplayName || "").toLowerCase().includes(needle)
-    );
-    if (!hit) throw new Error("No ESPN team matching '" + team.match + "'");
-    sessionStorage.setItem(cacheKey, String(hit.id));
-    return String(hit.id);
-  }
-
-  // Broadcast channels: national feeds plus our side's regional feed.
-  // The opponent's regional channel (market "Home"/"Away" on their
-  // side) is skipped — it isn't watchable from this city anyway.
-  async function fetchChannels(ev, game) {
-    try {
-      const comp = (ev.competitions && ev.competitions[0]) || {};
-      if (!comp.broadcasts || !comp.broadcasts.$ref) return [];
-      const data = await getJSON(comp.broadcasts.$ref);
-      const ourMarket = game.home ? "Home" : "Away";
-      // Opponent nickname, for catching mislabeled feeds (ESPN
-      // sometimes tags the opponent's own stream with our market,
-      // e.g. Padres.TV marked "Home" at Dodger Stadium).
-      const oppWords = (game.opponent || "").toLowerCase().split(/\s+/);
-      let oppNick = oppWords.pop() || "";
-      if (oppNick === "fc") oppNick = oppWords.pop() || "";
-      const names = [];
-      (data.items || []).forEach((b) => {
-        const market = b.market && b.market.type;
-        const name = b.media && (b.media.shortName || b.media.name);
-        if (!name) return;
-        if (market && market !== "National" && market !== ourMarket) return;
-        if (oppNick && name.toLowerCase().indexOf(oppNick) !== -1) return;
-        if (names.indexOf(name) === -1) names.push(name);
-      });
-      return names;
-    } catch (e) {
-      return []; // channel info is nice-to-have; never fail the card
-    }
-  }
-
-  function toGame(ev, id, team) {
-    const comp = (ev.competitions && ev.competitions[0]) || {};
-    const sides = comp.competitors || [];
-    const us = sides.find((c) => String(c.id) === String(id));
-    const home = !!(us && us.homeAway === "home");
-
-    // Event names are "Away Team at Home Team" in every league.
-    let opponent = null;
-    if (ev.name && ev.name.indexOf(" at ") !== -1) {
-      const halves = ev.name.split(" at ");
-      opponent = home ? halves[0] : halves[1];
-    }
-
-    // seasonType is a $ref like .../types/1. Type 1 is Preseason in
-    // the US leagues but Regular Season in soccer, so skip soccer.
-    const typeRef = (ev.seasonType && ev.seasonType.$ref) || "";
-    const preseason =
-      team.sportPath.indexOf("soccer/") !== 0 && /\/types\/1(\?|$)/.test(typeRef);
-
-    return {
-      date: new Date(ev.date),
-      home: home,
-      opponent: opponent || ev.shortName || "TBD",
-      label: preseason ? "Preseason" : null
-    };
-  }
-
-  async function fetchUpcoming(team) {
-    const id = await resolveTeamId(team);
-    const now = new Date();
-    // Start the window a day early: `dates` is interpreted in UTC,
-    // and tonight's game can be "tomorrow" UTC (and vice versa).
-    const start = new Date(now.getTime() - 86400000);
-    const end = new Date(now.getTime() + WINDOW_DAYS * 86400000);
-    const list = await getJSON(
-      API + "/" + leaguePath(team.sportPath) + "/teams/" + id +
-      "/events?dates=" + yyyymmdd(start) + "-" + yyyymmdd(end) + "&limit=500"
-    );
-    const refs = (list.items || []).map((item) => item.$ref);
-    if (!refs.length) return [];
-
-    // The list is date-sorted, but the direction varies by league
-    // (MLB ascending, soccer descending, …). Probe both ends, then
-    // fetch only the earliest handful.
-    const take = GAMES_PER_TEAM + FETCH_MARGIN;
-    const first = await getJSON(refs[0]);
-    let candidates;
-    if (refs.length <= take) {
-      candidates = [first].concat(
-        await Promise.all(refs.slice(1).map(getJSON))
-      );
-    } else {
-      const last = await getJSON(refs[refs.length - 1]);
-      const ascending = new Date(first.date) <= new Date(last.date);
-      const slice = ascending ? refs.slice(1, take) : refs.slice(-take, -1);
-      const rest = await Promise.all(slice.map(getJSON));
-      candidates = ascending ? [first].concat(rest) : rest.concat([last]);
-    }
-
-    const upcoming = candidates
-      .filter((ev) => {
-        const d = new Date(ev.date);
-        return !isNaN(d) && d > now;
-      })
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(0, GAMES_PER_TEAM);
-
-    // Channels only for the games we'll actually show (one extra
-    // request per game).
-    const games = await Promise.all(
-      upcoming.map(async (ev) => {
-        const game = toGame(ev, id, team);
-        game.channels = await fetchChannels(ev, game);
-        return game;
-      })
-    );
+  // Pull one team's games out of the cache and revive dates. Returns
+  // null if the team isn't in the cache (renders "Unavailable").
+  function gamesForTeam(data, team) {
+    const raw = data.teams && data.teams[team.sportPath + ":" + team.teamId];
+    if (!raw) return null;
+    const games = raw.map((g) => ({
+      date: new Date(g.date),
+      home: g.home,
+      opponent: g.opponent,
+      label: g.label || null,
+      channels: g.channels || []
+    }));
     if (DUMMY_LIVE && games[0]) games[0].live = dummyLive(team);
     return games;
   }
@@ -629,16 +492,22 @@
     const teamsEl = document.getElementById("teams");
     teamsEl.innerHTML = '<p class="loading">Loading schedules…</p>';
 
-    const results = await Promise.all(
-      city.teams.map(async (team) => {
-        try {
-          return { team, events: await fetchUpcoming(team), error: null };
-        } catch (err) {
-          console.error(team.name, err);
-          return { team, events: [], error: err };
-        }
-      })
-    );
+    let data;
+    try {
+      data = await loadSchedules();
+    } catch (err) {
+      console.error("schedules.json", err);
+      const failed = city.teams.map((team) => ({ team, events: [], error: err }));
+      teamsEl.innerHTML = failed.map((r) => teamCard(r.team, r.events, r.error)).join("");
+      lastResults = failed;
+      applyFilter();
+      return;
+    }
+
+    const results = city.teams.map((team) => {
+      const games = gamesForTeam(data, team);
+      return { team, events: games || [], error: games ? null : true };
+    });
 
     // team cards: in-season teams first, offseason/error last
     const sorted = results.slice().sort(
@@ -652,12 +521,12 @@
 
     const stamp = document.getElementById("updated");
     if (stamp) {
-      const now = new Date();
+      const gen = data.generated ? new Date(data.generated) : new Date();
       stamp.textContent =
-        "Live data · loaded " +
+        "Schedules updated " +
         new Intl.DateTimeFormat("en-US", {
           month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
-        }).format(now) + " " + localTzLabel(now) + " · refresh for latest";
+        }).format(gen) + " " + localTzLabel(gen) + " · refreshed daily";
     }
   }
 

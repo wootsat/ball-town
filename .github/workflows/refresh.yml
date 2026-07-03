@@ -1,0 +1,39 @@
+name: Refresh schedules
+
+# Rebuilds data/schedules.json once a day from ESPN and commits it.
+# The push triggers Cloudflare Pages to redeploy automatically, so
+# every visitor reads the fresh cache instead of calling ESPN.
+
+on:
+  schedule:
+    - cron: "0 11 * * *"   # ~06:00 CT daily (UTC; GitHub cron may lag a few min)
+  workflow_dispatch:        # allow manual runs from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-schedules
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Fetch schedules
+        run: node tools/fetch-schedules.mjs
+      - name: Commit if changed
+        run: |
+          if [ -n "$(git status --porcelain data/schedules.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/schedules.json
+            git commit -m "chore: daily schedule refresh"
+            git push
+          else
+            echo "No schedule changes."
+          fi
