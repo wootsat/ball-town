@@ -49,10 +49,16 @@ async function buildLive() {
       const j = await res.json();
       (j.events || []).forEach((ev) => {
         const st = ev.status && ev.status.type;
-        if (!st || st.state !== "in") return; // in-progress only
+        // in-progress ("in") or finished ("post"). "post" games stay on
+        // ESPN's scoreboard through the day; the client drops them once
+        // the viewer's local date rolls over.
+        if (!st || (st.state !== "in" && st.state !== "post")) return;
         const comp = ev.competitions && ev.competitions[0];
         if (!comp) return;
-        const status = liveStatus(lg, ev.status);
+        const final = st.state === "post";
+        const status = final
+          ? (st.shortDetail || "Final")   // "Final", "Final/OT", "Final/10"
+          : liveStatus(lg, ev.status);
         const cs = comp.competitors || [];
         cs.forEach((c) => {
           const other = cs.find((x) => x !== c);
@@ -60,7 +66,8 @@ async function buildLive() {
           games[lg + ":" + c.id] = {
             us: Number(c.score),
             them: Number(other.score),
-            status: status
+            status: status,
+            state: final ? "final" : "in"
           };
         });
       });

@@ -41,11 +41,16 @@ statically (Cloudflare Pages, domain ball.town).
   config; `index.html`'s are static in its `<head>`. Canonical origin
   is hardcoded `https://ball.town` in build.mjs (`SITE`).
 - `functions/live.js` — Cloudflare Pages Function served at `/live`.
-  Polls ESPN scoreboards for **in-progress** games, returns a compact
-  `{games:{"<sportPath>:<teamId>":{us,them,status}}}` map (both sides of
-  each game), edge-cached 30s via the Cache API. Auto-deploys with the
-  repo — no Worker/KV/cron. app.js polls it every 30s and overlays the
-  score onto each team's current game (`startLive`).
+  Polls ESPN scoreboards for **in-progress and finished-today** games,
+  returns `{games:{"<sportPath>:<teamId>":{us,them,status,state}}}`
+  (`state` = `"in"` | `"final"`; both sides of each game), edge-cached
+  30s via the Cache API. Auto-deploys with the repo — no Worker/KV/cron.
+  app.js polls every 30s and overlays live score / "Final" onto each
+  team's current game (`startLive`). Finished games show "Final" +
+  result until **4am the next morning in the viewer's local time**
+  (`sportsDay` = calendar day of `time − 4h`; `isPastDay` compares it,
+  and the poll re-checks so an idle open tab clears at 4am), giving
+  night owls a chance to catch late finals.
 
 ## Two pipelines: pages (structure) and data (schedules)
 

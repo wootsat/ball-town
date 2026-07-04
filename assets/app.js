@@ -85,6 +85,19 @@
     return fmtDate.format(d);
   }
 
+  // The "sports day" rolls over at 4am local, not midnight — so a game
+  // that finishes late still shows (as "Final") to night owls until 4am
+  // the next morning, then drops out. Computed as the calendar day of
+  // (time − 4h).
+  const DAY_ROLLOVER_HOUR = 4;
+  function sportsDay(d) {
+    const t = new Date(d.getTime() - DAY_ROLLOVER_HOUR * 3600000);
+    return new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+  }
+  function isPastDay(d) {
+    return sportsDay(d) < sportsDay(new Date());
+  }
+
   // Viewer's zone abbreviation ("CDT", "GMT+2", …) for the given
   // date, so DST changes stay accurate.
   function localTzLabel(d) {
@@ -134,22 +147,31 @@
 
   function gameRow(ev, team) {
     const live = ev.live;
-    const dateCell = live
-      ? '<span class="g-date"><span class="live-dot"></span>LIVE</span>'
-      : '<span class="g-date">' + dayLabel(ev.date) + "</span>";
-    const lastCell = live
-      ? '<span class="g-status">' + live.status + "</span>"
-      : '<span class="g-time">' + fmtTime.format(ev.date) + "</span>";
+    const isLive = !!(live && live.state === "in");
+    const isFinal = !!(live && live.state === "final");
+    let dateCell, lastCell;
+    if (isLive) {
+      dateCell = '<span class="g-date"><span class="live-dot"></span>LIVE</span>';
+      lastCell = '<span class="g-status">' + live.status + "</span>";
+    } else if (isFinal) {
+      dateCell = '<span class="g-date">Final</span>';
+      lastCell = ""; // finished — no clock/start time
+    } else {
+      dateCell = '<span class="g-date">' + dayLabel(ev.date) + "</span>";
+      lastCell = '<span class="g-time">' + fmtTime.format(ev.date) + "</span>";
+    }
+    // Channels + preseason/national tags are pre-game info — hide once final.
+    const extras = !isFinal;
     return (
-      '<li class="game' + (live ? " live" : "") + '">' +
+      '<li class="game' + (isLive ? " live" : "") + (isFinal ? " final" : "") + '">' +
       dateCell +
       '<span class="g-opp"><span class="vs">' + (ev.home ? "vs" : "at") + "</span>" +
       ev.opponent +
       (ev.home ? '<span class="home-tag">Home</span>' : "") +
-      (ev.label ? '<span class="g-tag g-tag-pre">' + ev.label + "</span>" : "") +
-      (ev.national ? '<span class="g-tag g-tag-nat">Nat\'l TV</span>' : "") +
-      (live ? '<span class="g-score">' + live.us + "–" + live.them + "</span>" : "") +
-      (ev.channels && ev.channels.length
+      (extras && ev.label ? '<span class="g-tag g-tag-pre">' + ev.label + "</span>" : "") +
+      (extras && ev.national ? '<span class="g-tag g-tag-nat">Nat\'l TV</span>' : "") +
+      (isLive || isFinal ? '<span class="g-score">' + live.us + "–" + live.them + "</span>" : "") +
+      (extras && ev.channels && ev.channels.length
         ? '<span class="g-tv">' + ev.channels.join(", ") + "</span>"
         : "") +
       "</span>" +
@@ -191,22 +213,27 @@
 
   function upNextCard(item) {
     const live = item.ev.live;
-    const topCell = live
+    const isLive = !!(live && live.state === "in");
+    const isFinal = !!(live && live.state === "final");
+    const topCell = isLive
       ? '<div class="next-when"><span class="live-dot"></span>LIVE</div>'
+      : isFinal
+      ? '<div class="next-when">Final</div>'
       : '<div class="next-when">' + dayLabel(item.ev.date) + "</div>";
-    const bottomCell = live
+    const bottomCell = isLive || isFinal
       ? '<div class="next-score">' + live.us + "–" + live.them +
-        ' <span class="next-status">' + live.status + "</span></div>"
+        (isLive ? ' <span class="next-status">' + live.status + "</span>" : "") + "</div>"
       : '<div class="next-time">' + fmtTime.format(item.ev.date) + " " +
         localTzLabel(item.ev.date) + "</div>";
     return (
-      '<div class="next-card' + (live ? " live" : "") + '" style="--tc:' + item.team.colors[0] + '">' +
+      '<div class="next-card' + (isLive ? " live" : "") + (isFinal ? " final" : "") +
+      '" style="--tc:' + item.team.colors[0] + '">' +
       '<span class="next-ic" aria-hidden="true">' + sportIcon(item.team) + "</span>" +
       topCell +
       '<div class="next-team">' + shortTeamName(item.team) + "</div>" +
       '<div class="next-opp">' + (item.ev.home ? "vs " : "at ") + item.ev.opponent +
       (item.ev.home ? " · home" : "") + "</div>" +
-      (item.ev.channels && item.ev.channels.length
+      (!isFinal && item.ev.channels && item.ev.channels.length
         ? '<div class="next-tv">' + item.ev.channels.join(", ") + "</div>"
         : "") +
       bottomCell +
@@ -262,7 +289,13 @@
     const all = [];
     lastResults.forEach((r) => {
       if (hiddenKeys.has(r.team.key)) return;
-      r.events.forEach((ev) => all.push({ team: r.team, ev }));
+      r.events.forEach((ev) => {
+        if (isPastDay(ev.date)) return;
+        // Keep the strip forward-looking: live games belong, finished
+        // ones don't (they still show "Final" on the team card).
+        if (ev.live && ev.live.state === "final") return;
+        all.push({ team: r.team, ev });
+      });
     });
     all.sort((a, b) => a.ev.date - b.ev.date);
     stripEl.innerHTML = all.length
@@ -482,26 +515,36 @@
 
   function renderTeams(results) {
     const teamsEl = document.getElementById("teams");
-    // in-season teams first, offseason/error last
-    const sorted = results.slice().sort(
-      (a, b) => (b.events.length ? 1 : 0) - (a.events.length ? 1 : 0)
-    );
-    teamsEl.innerHTML = sorted.map((r) => teamCard(r.team, r.events, r.error)).join("");
+    // Drop games whose local day has passed (finished games clear at
+    // local midnight); in-season teams first, offseason/error last.
+    const rows = results.map((r) => ({
+      team: r.team,
+      error: r.error,
+      events: r.events.filter((e) => !isPastDay(e.date))
+    }));
+    rows.sort((a, b) => (b.events.length ? 1 : 0) - (a.events.length ? 1 : 0));
+    teamsEl.innerHTML = rows.map((r) => teamCard(r.team, r.events, r.error)).join("");
   }
 
   // Poll /live and overlay in-progress scores onto each team's current
   // game. Only re-renders when something actually changed, so idle
   // pages (no live games) don't churn the DOM every interval.
   function startLive(results) {
+    let lastDay = sportsDay(new Date());
     async function poll() {
-      let data;
+      let changed = false;
+      // Force a re-render when the sports day rolls over (4am local) so
+      // finished games drop out even on an idle open tab.
+      const today = sportsDay(new Date());
+      if (today !== lastDay) { lastDay = today; changed = true; }
+
+      let data = null;
       try {
         data = await (await fetch(LIVE_URL, { cache: "no-cache" })).json();
       } catch (e) {
-        return; // endpoint unavailable (e.g. local static server) — skip
+        data = null; // endpoint unavailable (e.g. local static server)
       }
       const games = (data && data.games) || {};
-      let changed = false;
       results.forEach((r) => {
         if (!r.events.length) return;
         const live = games[r.team.sportPath + ":" + r.team.teamId] || null;
