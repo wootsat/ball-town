@@ -155,7 +155,8 @@
       lastCell = '<span class="g-status">' + live.status + "</span>";
     } else if (isFinal) {
       dateCell = '<span class="g-date">Final</span>';
-      lastCell = ""; // finished — no clock/start time
+      // Put the date back where the start time was ("Today" / "Sat, Jul 4").
+      lastCell = '<span class="g-time">' + dayLabel(ev.date) + "</span>";
     } else {
       dateCell = '<span class="g-date">' + dayLabel(ev.date) + "</span>";
       lastCell = '<span class="g-time">' + fmtTime.format(ev.date) + "</span>";
