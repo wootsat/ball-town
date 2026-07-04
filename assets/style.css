@@ -172,6 +172,10 @@ h1{
   border:1px solid var(--line);border-radius:5px;padding:0 7px;color:var(--ink);
 }
 .g-status{font-size:13px;font-weight:700;color:var(--live);white-space:nowrap}
+.g-result{display:inline-block;font-size:12px;font-weight:800;margin-left:6px;vertical-align:1px}
+.g-win{color:#3FB950}
+.g-loss{color:#FF5A5F}
+.g-tie{color:var(--ink-soft)}
 .next-card.live .next-when{color:var(--live);font-weight:700}
 .next-card.final .next-when{color:var(--ink);font-weight:700}
 .next-score{margin-top:6px;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}

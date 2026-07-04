@@ -162,6 +162,16 @@
     }
     // Channels + preseason/national tags are pre-game info — hide once final.
     const extras = !isFinal;
+    // W/L/T result badge, from our team's side, on finals only.
+    let result = "";
+    if (isFinal) {
+      const r = live.us > live.them
+        ? ["W", "g-win"]
+        : live.us < live.them
+        ? ["L", "g-loss"]
+        : ["T", "g-tie"];
+      result = '<span class="g-result ' + r[1] + '">' + r[0] + "</span>";
+    }
     return (
       '<li class="game' + (isLive ? " live" : "") + (isFinal ? " final" : "") + '">' +
       dateCell +
@@ -171,6 +181,7 @@
       (extras && ev.label ? '<span class="g-tag g-tag-pre">' + ev.label + "</span>" : "") +
       (extras && ev.national ? '<span class="g-tag g-tag-nat">Nat\'l TV</span>' : "") +
       (isLive || isFinal ? '<span class="g-score">' + live.us + "–" + live.them + "</span>" : "") +
+      result +
       (extras && ev.channels && ev.channels.length
         ? '<span class="g-tv">' + ev.channels.join(", ") + "</span>"
         : "") +
@@ -538,22 +549,27 @@
       const today = sportsDay(new Date());
       if (today !== lastDay) { lastDay = today; changed = true; }
 
-      let data = null;
+      let games = null;
       try {
-        data = await (await fetch(LIVE_URL, { cache: "no-cache" })).json();
+        const data = await (await fetch(LIVE_URL, { cache: "no-cache" })).json();
+        games = (data && data.games) || {};
       } catch (e) {
-        data = null; // endpoint unavailable (e.g. local static server)
+        games = null; // /live unreachable this cycle — keep overlays as-is
       }
-      const games = (data && data.games) || {};
-      results.forEach((r) => {
-        if (!r.events.length) return;
-        const live = games[r.team.sportPath + ":" + r.team.teamId] || null;
-        const cur = r.events[0].live || null;
-        if (JSON.stringify(cur) !== JSON.stringify(live)) {
-          r.events[0].live = live;
-          changed = true;
-        }
-      });
+      // Only touch overlays on a successful fetch. A game that's no
+      // longer in /live gets cleared (reverts to date); a transient
+      // fetch failure leaves the current overlay untouched (no flicker).
+      if (games) {
+        results.forEach((r) => {
+          if (!r.events.length) return;
+          const live = games[r.team.sportPath + ":" + r.team.teamId] || null;
+          const cur = r.events[0].live || null;
+          if (JSON.stringify(cur) !== JSON.stringify(live)) {
+            r.events[0].live = live;
+            changed = true;
+          }
+        });
+      }
       if (changed) {
         renderTeams(results);
         applyFilter();

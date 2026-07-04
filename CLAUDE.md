@@ -45,8 +45,11 @@ statically (Cloudflare Pages, domain ball.town).
   returns `{games:{"<sportPath>:<teamId>":{us,them,status,state}}}`
   (`state` = `"in"` | `"final"`; both sides of each game), edge-cached
   30s via the Cache API. Auto-deploys with the repo — no Worker/KV/cron.
-  app.js polls every 30s and overlays live score / "Final" onto each
-  team's current game (`startLive`). Finished games show "Final" +
+  app.js polls every 30s and overlays live score / "Final" (+ a green
+  W / red L / gray T result badge) onto each team's current game
+  (`startLive`). The poll only mutates overlays on a **successful**
+  fetch — a transient `/live` failure leaves them as-is (no stale-LIVE
+  flicker); a game that leaves `/live` reverts to its date. Finished games show "Final" +
   result until **4am the next morning in the viewer's local time**
   (`sportsDay` = calendar day of `time − 4h`; `isPastDay` compares it,
   and the poll re-checks so an idle open tab clears at 4am), giving
