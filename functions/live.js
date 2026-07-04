@@ -63,7 +63,16 @@ async function buildLive() {
         cs.forEach((c) => {
           const other = cs.find((x) => x !== c);
           if (!other) return;
+          // Opponent from "Away at Home" (matches schedules.json naming).
+          let opponent = "";
+          if (ev.name && ev.name.indexOf(" at ") !== -1) {
+            const h = ev.name.split(" at ");
+            opponent = c.homeAway === "home" ? h[0] : h[1];
+          }
           games[lg + ":" + c.id] = {
+            date: ev.date,
+            home: c.homeAway === "home",
+            opponent: opponent,
             us: Number(c.score),
             them: Number(other.score),
             status: status,

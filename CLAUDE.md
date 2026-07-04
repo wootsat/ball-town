@@ -41,15 +41,21 @@ statically (Cloudflare Pages, domain ball.town).
   config; `index.html`'s are static in its `<head>`. Canonical origin
   is hardcoded `https://ball.town` in build.mjs (`SITE`).
 - `functions/live.js` — Cloudflare Pages Function served at `/live`.
-  Polls ESPN scoreboards for **in-progress and finished-today** games,
-  returns `{games:{"<sportPath>:<teamId>":{us,them,status,state}}}`
+  Polls ESPN scoreboards for **in-progress and finished** games, returns
+  `{games:{"<sportPath>:<teamId>":{date,home,opponent,us,them,status,state}}}`
   (`state` = `"in"` | `"final"`; both sides of each game), edge-cached
   30s via the Cache API. Auto-deploys with the repo — no Worker/KV/cron.
-  app.js polls every 30s and overlays live score / "Final" (+ a green
-  W / red L / gray T result badge) onto each team's current game
-  (`startLive`). The poll only mutates overlays on a **successful**
-  fetch — a transient `/live` failure leaves them as-is (no stale-LIVE
-  flicker); a game that leaves `/live` reverts to its date. Finished games show "Final" +
+- Live/score integration (`startLive` + `displayEvents` in app.js): the
+  poll stores the raw `/live` entry per team (only on a **successful**
+  fetch — a transient failure leaves state as-is, no stale-LIVE flicker).
+  `displayEvents` matches that entry to the scheduled game on the **same
+  local day** and overlays LIVE / "Final" (+ green W / red L / gray T
+  badge) onto it. A finished game that's already dropped out of
+  `schedules.json` (refetched away) is rendered as a **standalone row**
+  from the `/live` `date`/`opponent` — so its date is always correct,
+  not borrowed from the next upcoming game. Everything clears at the 4am
+  local rollover (`isPastDay`). Do NOT go back to overlaying `events[0]`
+  blindly — that mislabels finals with the next game's date. Finished games show "Final" +
   result until **4am the next morning in the viewer's local time**
   (`sportsDay` = calendar day of `time − 4h`; `isPastDay` compares it,
   and the poll re-checks so an idle open tab clears at 4am), giving

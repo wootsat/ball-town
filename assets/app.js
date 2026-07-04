@@ -301,8 +301,7 @@
     const all = [];
     lastResults.forEach((r) => {
       if (hiddenKeys.has(r.team.key)) return;
-      r.events.forEach((ev) => {
-        if (isPastDay(ev.date)) return;
+      displayEvents(r).forEach((ev) => {
         // Keep the strip forward-looking: live games belong, finished
         // ones don't (they still show "Final" on the team card).
         if (ev.live && ev.live.state === "final") return;
@@ -525,14 +524,40 @@
 
   // ---------- live scores ----------
 
+  // The games to actually show for a team: scheduled upcoming games plus
+  // the live/final game from /live, matched onto the right day (or added
+  // as a standalone row if it's a finished game that's already dropped
+  // out of the schedule). Past days (before the 4am rollover) are removed.
+  function displayEvents(r) {
+    const entry = r.liveEntry || null;
+    const list = r.events.map((e) => Object.assign({}, e, { live: null }));
+    if (entry && entry.date) {
+      const key = new Date(entry.date).toDateString();
+      const target = list.find((e) => e.date.toDateString() === key);
+      if (target) {
+        target.live = entry; // same game is still in the schedule
+      } else {
+        list.unshift({    // finished game no longer scheduled — synthesize a row
+          date: new Date(entry.date),
+          home: !!entry.home,
+          opponent: entry.opponent || "TBD",
+          channels: [],
+          label: null,
+          national: false,
+          live: entry
+        });
+      }
+    }
+    return list.filter((e) => !isPastDay(e.date));
+  }
+
   function renderTeams(results) {
     const teamsEl = document.getElementById("teams");
-    // Drop games whose local day has passed (finished games clear at
-    // local midnight); in-season teams first, offseason/error last.
+    // in-season teams first, offseason/error last
     const rows = results.map((r) => ({
       team: r.team,
       error: r.error,
-      events: r.events.filter((e) => !isPastDay(e.date))
+      events: displayEvents(r)
     }));
     rows.sort((a, b) => (b.events.length ? 1 : 0) - (a.events.length ? 1 : 0));
     teamsEl.innerHTML = rows.map((r) => teamCard(r.team, r.events, r.error)).join("");
@@ -557,16 +582,14 @@
       } catch (e) {
         games = null; // /live unreachable this cycle — keep overlays as-is
       }
-      // Only touch overlays on a successful fetch. A game that's no
-      // longer in /live gets cleared (reverts to date); a transient
-      // fetch failure leaves the current overlay untouched (no flicker).
+      // Only touch state on a successful fetch. Store the raw entry per
+      // team; displayEvents() matches it to the right game by day. A
+      // transient fetch failure leaves the current state untouched.
       if (games) {
         results.forEach((r) => {
-          if (!r.events.length) return;
-          const live = games[r.team.sportPath + ":" + r.team.teamId] || null;
-          const cur = r.events[0].live || null;
-          if (JSON.stringify(cur) !== JSON.stringify(live)) {
-            r.events[0].live = live;
+          const entry = games[r.team.sportPath + ":" + r.team.teamId] || null;
+          if (JSON.stringify(r.liveEntry || null) !== JSON.stringify(entry)) {
+            r.liveEntry = entry;
             changed = true;
           }
         });
