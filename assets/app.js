@@ -149,10 +149,11 @@
     const live = ev.live;
     const isLive = !!(live && live.state === "in");
     const isFinal = !!(live && live.state === "final");
+    const lkey = team.sportPath + ":" + team.teamId; // for in-place score updates
     let dateCell, lastCell;
     if (isLive) {
       dateCell = '<span class="g-date"><span class="live-dot"></span>LIVE</span>';
-      lastCell = '<span class="g-status">' + live.status + "</span>";
+      lastCell = '<span class="g-status" data-lstatus="' + lkey + '">' + live.status + "</span>";
     } else if (isFinal) {
       dateCell = '<span class="g-date">Final</span>';
       // Put the date back where the start time was ("Today" / "Sat, Jul 4").
@@ -181,7 +182,10 @@
       (ev.home ? '<span class="home-tag">Home</span>' : "") +
       (extras && ev.label ? '<span class="g-tag g-tag-pre">' + ev.label + "</span>" : "") +
       (extras && ev.national ? '<span class="g-tag g-tag-nat">Nat\'l TV</span>' : "") +
-      (isLive || isFinal ? '<span class="g-score">' + live.us + "–" + live.them + "</span>" : "") +
+      (isLive || isFinal
+        ? '<span class="g-score"' + (isLive ? ' data-lscore="' + lkey + '"' : "") + ">" +
+          live.us + "–" + live.them + "</span>"
+        : "") +
       result +
       (extras && ev.channels && ev.channels.length
         ? '<span class="g-tv">' + ev.channels.join(", ") + "</span>"
@@ -227,14 +231,17 @@
     const live = item.ev.live;
     const isLive = !!(live && live.state === "in");
     const isFinal = !!(live && live.state === "final");
+    const lkey = item.team.sportPath + ":" + item.team.teamId;
     const topCell = isLive
       ? '<div class="next-when"><span class="live-dot"></span>LIVE</div>'
       : isFinal
       ? '<div class="next-when">Final</div>'
       : '<div class="next-when">' + dayLabel(item.ev.date) + "</div>";
     const bottomCell = isLive || isFinal
-      ? '<div class="next-score">' + live.us + "–" + live.them +
-        (isLive ? ' <span class="next-status">' + live.status + "</span>" : "") + "</div>"
+      ? '<div class="next-score"><span' + (isLive ? ' data-lscore="' + lkey + '"' : "") + ">" +
+        live.us + "–" + live.them + "</span>" +
+        (isLive ? ' <span class="next-status" data-lstatus="' + lkey + '">' + live.status + "</span>" : "") +
+        "</div>"
       : '<div class="next-time">' + fmtTime.format(item.ev.date) + " " +
         localTzLabel(item.ev.date) + "</div>";
     return (
@@ -535,7 +542,7 @@
       const key = new Date(entry.date).toDateString();
       const target = list.find((e) => e.date.toDateString() === key);
       if (target) {
-        target.live = entry; // same game is still in the schedule
+        target.live = entry; // live/final overlaid onto the same scheduled game
       } else {
         list.unshift({    // finished game no longer scheduled — synthesize a row
           date: new Date(entry.date),
@@ -549,6 +556,25 @@
       }
     }
     return list.filter((e) => !isPastDay(e.date));
+  }
+
+  // Surgically update just the score + status text of in-progress games,
+  // in EVERY place they appear (the team-card row AND the up-next strip),
+  // without re-rendering anything. This is what runs on a plain 30s score
+  // tick — the DOM elements carry data-lscore / data-lstatus keys.
+  function updateLiveScores(results) {
+    results.forEach((r) => {
+      const e = r.liveEntry;
+      if (!e || e.state !== "in") return;
+      const key = r.team.sportPath + ":" + r.team.teamId;
+      const score = e.us + "–" + e.them;
+      document.querySelectorAll('[data-lscore="' + key + '"]').forEach((el) => {
+        el.textContent = score;
+      });
+      document.querySelectorAll('[data-lstatus="' + key + '"]').forEach((el) => {
+        el.textContent = e.status;
+      });
+    });
   }
 
   function renderTeams(results) {
@@ -568,35 +594,41 @@
   // pages (no live games) don't churn the DOM every interval.
   function startLive(results) {
     let lastDay = sportsDay(new Date());
+    let lastStateSig = "";
     async function poll() {
-      let changed = false;
-      // Force a re-render when the sports day rolls over (4am local) so
-      // finished games drop out even on an idle open tab.
-      const today = sportsDay(new Date());
-      if (today !== lastDay) { lastDay = today; changed = true; }
-
       let games = null;
       try {
         const data = await (await fetch(LIVE_URL, { cache: "no-cache" })).json();
         games = (data && data.games) || {};
       } catch (e) {
-        games = null; // /live unreachable this cycle — keep overlays as-is
+        games = null; // /live unreachable this cycle — keep state as-is
       }
-      // Only touch state on a successful fetch. Store the raw entry per
-      // team; displayEvents() matches it to the right game by day. A
-      // transient fetch failure leaves the current state untouched.
+      // Store the raw entry per team, only on a successful fetch.
       if (games) {
         results.forEach((r) => {
-          const entry = games[r.team.sportPath + ":" + r.team.teamId] || null;
-          if (JSON.stringify(r.liveEntry || null) !== JSON.stringify(entry)) {
-            r.liveEntry = entry;
-            changed = true;
-          }
+          r.liveEntry = games[r.team.sportPath + ":" + r.team.teamId] || null;
         });
       }
-      if (changed) {
+
+      // Full re-render (cards + strip) only when the SET of live/final
+      // STATES changes (a game starts, ends, or drops) or the day rolls
+      // over. On a plain score tick, update the score/status text in
+      // place instead — so the page never re-renders every 30 seconds.
+      const today = sportsDay(new Date());
+      const dayRolled = today !== lastDay;
+      if (dayRolled) lastDay = today;
+      const sig = results
+        .map((r) => {
+          const e = r.liveEntry;
+          return e ? e.state + (isPastDay(new Date(e.date)) ? "p" : "a") : "-";
+        })
+        .join("|");
+      if (sig !== lastStateSig || dayRolled) {
+        lastStateSig = sig;
         renderTeams(results);
         applyFilter();
+      } else {
+        updateLiveScores(results); // score/clock tick — in-place, no re-render
       }
     }
     poll();

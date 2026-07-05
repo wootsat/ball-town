@@ -1,2 +1,8 @@
 .DS_Store
 node_modules/
+
+# Temp file used to test the /live Pages Function against the local
+# static server. A committed root "live" file would shadow
+# functions/live.js on Cloudflare (static assets win over Functions),
+# silently breaking live scores. Never commit it.
+/live
