@@ -77,10 +77,17 @@ function cityPage(slug, city) {
 
 function indexCards() {
   return Object.entries(cities)
+    .sort((a, b) => a[1].name.localeCompare(b[1].name)) // alphabetical by city
     .map(([slug, city]) => {
       const names = city.teams.map((t) => esc(t.short || t.name)).join(" · ");
+      // Everything the search box matches against: city + every team name.
+      const search = esc(
+        (city.name + " " + city.shortName + " " + (city.abbr || "") + " " +
+          city.teams.map((t) => t.name + " " + (t.short || "")).join(" ")
+        ).toLowerCase()
+      );
       return (
-        '  <a class="city-card" href="city/' + slug + '.html">\n' +
+        '  <a class="city-card" href="city/' + slug + '.html" data-search="' + search + '">\n' +
         "    <h2>" + esc(city.name) + "</h2>\n" +
         "    <p>" + names + "</p>\n" +
         "  </a>"
