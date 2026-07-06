@@ -220,6 +220,7 @@ h1{
 .search-empty{color:var(--ink-soft);font-size:15px;margin:28px 0}
 .city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin-top:28px;margin-bottom:36px}
 .city-card{animation:cardin .22s ease both}
+.city-card[hidden]{display:none} /* beat .city-card{display:block} so search can hide cards */
 @keyframes cardin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.city-card{animation:none}}
 .city-card{
