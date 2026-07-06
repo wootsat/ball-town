@@ -144,8 +144,9 @@ Edit `data/cities.js` (one entry), then `npm run build` (page) **and**
 `npm run fetch` (schedules) — see README "Add a city". Pin `teamId`
 (the fetcher keys off it; there's no runtime name-resolution fallback
 anymore). Also set `short` (chips/strip nickname) and `abbr` (home-screen
-code). All pinned ids live in `data/cities.js` (10 metros as of this
-writing).
+code). All pinned ids live in `data/cities.js` (51 metros / every US &
+Canadian market with ≥1 team in the six leagues, as of this writing —
+169 teams).
 
 Bulk-resolving ids/colors/venues (for adding many markets at once):
 don't use the CORS-only core API — hit the richer **`site.api.espn.com`
