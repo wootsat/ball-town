@@ -1,7 +1,7 @@
 {
-  "name": "ball.town MSP",
-  "short_name": "ball.town MSP",
-  "description": "Upcoming games for every Minneapolis–St. Paul pro team.",
+  "name": "ball.town MN",
+  "short_name": "ball.town MN",
+  "description": "Upcoming games for every Minnesota pro team.",
   "start_url": "minneapolis.html",
   "scope": "./",
   "display": "standalone",

@@ -68,9 +68,14 @@ h1{
 }
 .chip:hover{border-color:var(--ink-soft)}
 .chip{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.chip.dragging{
-  opacity:.6;transform:scale(1.05);cursor:grabbing;
-  box-shadow:0 6px 16px rgba(0,0,0,.4);position:relative;z-index:2;
+/* the original chip left in flow, showing where the dragged one will land */
+.chip.drag-placeholder{opacity:.3}
+/* the floating clone that follows the finger/cursor */
+.chip-ghost{
+  position:fixed;left:0;top:0;z-index:1000;margin:0;
+  pointer-events:none;cursor:grabbing;transition:none;
+  transform:scale(1.05);transform-origin:top left;
+  box-shadow:0 8px 22px rgba(0,0,0,.45);
 }
 .chip-dot{width:10px;height:10px;border-radius:50%;background:color-mix(in srgb,var(--tc,var(--ink)) 65%,var(--lift));flex:none}
 .chip-ic{display:inline-flex;color:color-mix(in srgb,var(--tc,var(--ink)) 65%,var(--lift));flex:none}
@@ -300,6 +305,7 @@ footer{
   font-size:13px;color:var(--ink-soft);
   display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
 }
+.appver{flex-basis:100%;font-size:11px;letter-spacing:.04em;opacity:.55}
 
 /* ---------- add-to-home-screen banner ---------- */
 .a2hs{

@@ -8,6 +8,11 @@
 
 (function () {
   const UP_NEXT_COUNT = 5;
+  // Bump on each deploy you want to confirm reached clients. It's baked
+  // into this file, so the footer shows the version of the code ACTUALLY
+  // running — the reliable "did my update land?" signal (a server-fetched
+  // timestamp would read fresh even while a stale PWA runs old code).
+  const APP_VERSION = "2026-07-11.1";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /live Pages Function (edge-cached ~30s).
@@ -567,11 +572,12 @@
   // ---------- drag a chip to reorder the cards ----------
   // One Pointer Events path for mouse + touch. Mouse: a small move starts
   // the drag (a plain click still toggles). Touch: a ~450ms long-press
-  // starts it (a quick tap toggles, an early move scrolls the page). The
-  // dragged chip hops between siblings; on release we persist the order
-  // and re-sort the cards below to match.
+  // starts it (a quick tap toggles, an early move scrolls the page). A
+  // floating clone follows the pointer while the original chip stays put
+  // as a dimmed placeholder that slides between siblings to show where it
+  // will land; on release we persist the order and re-sort the cards.
   function initChipDrag(el) {
-    let cand = null; // {chip, startX, startY, pointerType, active, timer}
+    let cand = null; // {chip, startX, startY, lastX, lastY, pointerType, active, timer, ghost, grabX, grabY}
 
     function stopListening() {
       document.removeEventListener("pointermove", onMove);
@@ -581,19 +587,35 @@
     function reset() {
       if (cand) {
         if (cand.timer) clearTimeout(cand.timer);
-        if (cand.chip) cand.chip.classList.remove("dragging");
+        if (cand.ghost && cand.ghost.parentNode) cand.ghost.parentNode.removeChild(cand.ghost);
+        if (cand.chip) cand.chip.classList.remove("drag-placeholder");
       }
       cand = null;
       stopListening();
     }
     function activate() {
-      if (!cand) return;
+      if (!cand || cand.active) return;
       cand.active = true;
-      cand.chip.classList.add("dragging");
       closeAddPanel();
+      const chip = cand.chip;
+      const rect = chip.getBoundingClientRect();
+      // where inside the chip the pointer grabbed it, so it tracks 1:1
+      cand.grabX = cand.lastX - rect.left;
+      cand.grabY = cand.lastY - rect.top;
+      const ghost = chip.cloneNode(true);
+      ghost.classList.add("chip-ghost");
+      ghost.style.width = rect.width + "px";
+      ghost.style.height = rect.height + "px";
+      ghost.style.left = rect.left + "px";
+      ghost.style.top = rect.top + "px";
+      document.body.appendChild(ghost);
+      cand.ghost = ghost;
+      chip.classList.add("drag-placeholder");
     }
     function onMove(e) {
       if (!cand) return;
+      cand.lastX = e.clientX;
+      cand.lastY = e.clientY;
       if (!cand.active) {
         const dist = Math.abs(e.clientX - cand.startX) + Math.abs(e.clientY - cand.startY);
         if (cand.pointerType === "mouse") {
@@ -604,11 +626,17 @@
         }
         if (!cand.active) return;
       }
-      // Reorder: drop the dragged chip next to whichever chip is under the
-      // pointer (left half → before, right half → after).
+      // The clone follows the finger/cursor.
+      if (cand.ghost) {
+        cand.ghost.style.left = e.clientX - cand.grabX + "px";
+        cand.ghost.style.top = e.clientY - cand.grabY + "px";
+      }
+      // Slide the placeholder next to whichever chip is under the pointer
+      // (left half → before, right half → after).
       const raw = document.elementFromPoint(e.clientX, e.clientY);
       const over = raw ? raw.closest(".chip") : null;
-      if (!over || over === cand.chip || over.classList.contains("chip-add")) return;
+      if (!over || over === cand.chip ||
+        over.classList.contains("chip-add") || over.classList.contains("chip-ghost")) return;
       const rect = over.getBoundingClientRect();
       const before = e.clientX < rect.left + rect.width / 2;
       const parent = cand.chip.parentNode;
@@ -639,9 +667,12 @@
         chip: chip,
         startX: e.clientX,
         startY: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
         pointerType: e.pointerType,
         active: false,
-        timer: null
+        timer: null,
+        ghost: null
       };
       document.addEventListener("pointermove", onMove);
       document.addEventListener("pointerup", onUp);
@@ -938,6 +969,24 @@
     });
   }
 
+  // ---------- pick up code updates once a day ----------
+  // An installed PWA keeps its page in memory, so reopening it doesn't
+  // re-fetch anything — new deploys never reach it until a real reload.
+  // Live scores don't need this (the /live poll refreshes them in place),
+  // so we reload only to grab a new code deploy + that day's schedule:
+  // when the app returns to the foreground and the sports day (4am
+  // rollover) has changed since it was loaded. That's at most once a day,
+  // never on a same-day app-switch.
+  function initAutoRefresh() {
+    const loadedDay = sportsDay(new Date());
+    function maybeReload() {
+      if (document.visibilityState !== "visible") return;
+      if (sportsDay(new Date()) !== loadedDay) location.reload();
+    }
+    document.addEventListener("visibilitychange", maybeReload);
+    window.addEventListener("pageshow", maybeReload); // also covers bfcache restores
+  }
+
   // ---------- live scores ----------
 
   // The games to actually show for a team: scheduled upcoming games plus
@@ -1096,7 +1145,21 @@
     }
   }
 
+  // Show the running code's version at the very bottom, so a deploy can be
+  // confirmed on any device (including an installed PWA once it reloads).
+  function renderVersion() {
+    const foot = document.querySelector("footer");
+    if (!foot || document.getElementById("appver")) return;
+    const v = document.createElement("span");
+    v.id = "appver";
+    v.className = "appver";
+    v.textContent = "v" + APP_VERSION;
+    foot.appendChild(v);
+  }
+
   initInstallPrompt();
   initStickyHeader();
+  initAutoRefresh();
+  renderVersion();
   main();
 })();

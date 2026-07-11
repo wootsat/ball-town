@@ -29,11 +29,11 @@
   return {
   cities: {
     "minneapolis": {
-      name: "Minneapolis–St. Paul",
-      shortName: "Minneapolis",
-      abbr: "MSP",
+      name: "Minnesota",
+      shortName: "Minnesota",
+      abbr: "MN",
       tagline: "<b>Six pro teams, one page.</b> Upcoming games for every Twin Cities club, with dates and start times shown in your local time.",
-      stripLabel: "Up next in the Cities",
+      stripLabel: "Up next in the Twin Cities",
       tz: "America/Chicago",
       tzLabel: "CT",
       teams: [
