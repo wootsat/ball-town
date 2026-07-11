@@ -30,7 +30,8 @@ python3 -m http.server 8000
 # or: npx serve
 ```
 
-Then open http://localhost:8000/city/minneapolis.html
+Then open http://localhost:8000/mn (each city is served at its short
+code, e.g. `/mn`, `/la`, `/nyc`)
 
 (Opening the HTML file directly from disk usually works too, but a local
 server is more reliable.)
@@ -38,25 +39,28 @@ server is more reliable.)
 ## Add a city
 
 1. Add one entry to `data/cities.js` (copy the Minneapolis block; the
-   key is the URL slug). Set `abbr` (the 3-letter home-screen-app code,
-   e.g. `MSP`, `LA`) and pin each team's ESPN `teamId` — leave it off
-   for the first load and the app resolves it from the `match` name,
-   then pin the id it found. `tagline` and `stripLabel` are optional.
+   key is the internal slug). Set `abbr` (the home-screen-app code, e.g.
+   `MN`, `LA`) — its lowercase is also the short URL (`ball.town/mn`);
+   override with a `code` field if you want a different path. Pin each
+   team's ESPN `teamId` — leave it off for the first load and the app
+   resolves it from the `match` name, then pin the id it found. `tagline`
+   and `stripLabel` are optional.
 2. Run the generator:
 
    ```bash
    npm run build     # or: node tools/build.mjs
    ```
 
-That's it. The generator writes `city/<slug>.html` and
-`city/<slug>.webmanifest` from `tools/city.template.html`, and rebuilds
-the city cards on `index.html`. Commit the generated files.
+That's it. The generator writes `<code>/index.html` and
+`<code>/<code>.webmanifest` from `tools/city.template.html` (served at
+`ball.town/<code>`), rebuilds the city cards on `index.html`, and updates
+`sitemap.xml` + `_redirects`. Commit the generated files.
 
 To change the page skeleton for **every** city (add an element, a new
 `<head>` tag, restructure the header), edit `tools/city.template.html`
 once and re-run the generator. Look/behavior changes still live in
 `assets/style.css` / `assets/app.js` and need no rebuild. Never
-hand-edit `city/*.html` or `city/*.webmanifest` — they're regenerated.
+hand-edit the generated `<code>/*` files — they're regenerated.
 
 The app icons in `assets/icons/` are shared across all cities — no
 per-city icon work. See `assets/icons/README.md` to swap in real art.

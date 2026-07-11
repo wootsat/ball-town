@@ -1,14 +1,16 @@
 // ball.town static generator.
 // Reads data/cities.js and emits, for every city:
-//   city/<slug>.html        (from tools/city.template.html)
-//   city/<slug>.webmanifest
-// and rewrites the city cards in index.html between the CITIES markers.
+//   <code>/index.html        (from tools/city.template.html)
+//   <code>/<code>.webmanifest
+// served at the short URL ball.town/<code>. Also rewrites the city cards
+// in index.html (between the CITIES markers), sitemap.xml, and _redirects
+// (old /city/<slug> URLs -> the new short code).
 //
 // Run:  node tools/build.mjs   (or: npm run build)
-// No dependencies. Commit the generated files — GitHub Pages serves
+// No dependencies. Commit the generated files — Cloudflare Pages serves
 // them as-is (it does not run this script).
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
@@ -20,6 +22,21 @@ const { cities } = require(join(root, "data", "cities.js"));
 const template = readFileSync(join(root, "tools", "city.template.html"), "utf8");
 const THEME = "#0D141D";
 const SITE = "https://ball.town"; // canonical origin for SEO tags + sitemap
+
+// Short, shareable URL code per city (ball.town/<code>). Defaults to the
+// lowercased abbr; a city may override it with a `code` field. Codes must
+// be unique — they become top-level paths.
+const codeOf = (slug, city) => String(city.code || city.abbr || slug).toLowerCase();
+{
+  const seen = {};
+  for (const [slug, city] of Object.entries(cities)) {
+    const c = codeOf(slug, city);
+    if (seen[c]) {
+      throw new Error("Duplicate URL code '" + c + "' (" + seen[c] + " and " + slug + ")");
+    }
+    seen[c] = slug;
+  }
+}
 
 const esc = (s) =>
   String(s)
@@ -64,30 +81,35 @@ function description(city) {
   );
 }
 
-function manifest(slug, city) {
+// Manifest lives at /<code>/<code>.webmanifest and uses absolute paths so
+// it resolves the same however Cloudflare serves the short URL. Scope is
+// the whole site so tapping through to other cities stays in the app.
+function manifest(code, city) {
   return {
     name: "ball.town " + city.abbr,
     short_name: "ball.town " + city.abbr,
     description: "Upcoming games for every " + city.name + " pro team.",
-    start_url: slug + ".html",
-    scope: "./",
+    start_url: "/" + code,
+    scope: "/",
     display: "standalone",
     background_color: THEME,
     theme_color: THEME,
     icons: [
-      { src: "../assets/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "../assets/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-      { src: "../assets/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+      { src: "/assets/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { src: "/assets/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { src: "/assets/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
     ]
   };
 }
 
 function cityPage(slug, city) {
+  const code = codeOf(slug, city);
   return template
-    .replace(/\{\{SLUG\}\}/g, slug)
+    .replace(/\{\{SLUG\}\}/g, slug) // data-city -> config key (app.js lookup)
+    .replace(/\{\{CODE\}\}/g, code)
     .replace(/\{\{NAME\}\}/g, esc(city.name))
     .replace(/\{\{ABBR\}\}/g, esc(city.abbr || ""))
-    .replace(/\{\{MANIFEST\}\}/g, slug + ".webmanifest")
+    .replace(/\{\{MANIFEST\}\}/g, "/" + code + "/" + code + ".webmanifest")
     .replace(/\{\{DESCRIPTION\}\}/g, esc(description(city)))
     .replace(/\{\{TAGLINE\}\}/g, tagline(city))
     .replace(/\{\{STRIP_LABEL\}\}/g, esc(city.stripLabel || "Up next in " + city.shortName));
@@ -97,15 +119,16 @@ function indexCards() {
   return Object.entries(cities)
     .sort((a, b) => a[1].name.localeCompare(b[1].name)) // alphabetical by city
     .map(([slug, city]) => {
+      const code = codeOf(slug, city);
       const names = city.teams.map((t) => esc(t.short || t.name)).join(" · ");
-      // Everything the search box matches against: city + every team name.
+      // Everything the search box matches against: city + code + team names.
       const search = esc(
-        (city.name + " " + city.shortName + " " + (city.abbr || "") + " " +
+        (city.name + " " + city.shortName + " " + (city.abbr || "") + " " + code + " " +
           city.teams.map((t) => t.name + " " + (t.short || "")).join(" ")
         ).toLowerCase()
       );
       return (
-        '  <a class="city-card" href="city/' + slug + '.html" data-search="' + search + '">\n' +
+        '  <a class="city-card" href="/' + code + '" data-search="' + search + '">\n' +
         "    <h2>" + esc(city.name) + "</h2>\n" +
         "    <p>" + names + "</p>\n" +
         "  </a>"
@@ -117,15 +140,22 @@ function indexCards() {
 const START = "<!-- CITIES:START (generated by tools/build.mjs — do not edit by hand) -->";
 const END = "<!-- CITIES:END -->";
 
+// Old per-city folder is replaced by top-level short-code dirs; drop it so
+// the _redirects below (not a stale file) answer the old /city/... URLs.
+rmSync(join(root, "city"), { recursive: true, force: true });
+
 let written = 0;
 for (const [slug, city] of Object.entries(cities)) {
-  writeFileSync(join(root, "city", slug + ".html"), cityPage(slug, city));
+  const code = codeOf(slug, city);
+  const dir = join(root, code);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "index.html"), cityPage(slug, city));
   writeFileSync(
-    join(root, "city", slug + ".webmanifest"),
-    JSON.stringify(manifest(slug, city), null, 2) + "\n"
+    join(dir, code + ".webmanifest"),
+    JSON.stringify(manifest(code, city), null, 2) + "\n"
   );
   written += 2;
-  console.log("  city/" + slug + ".html + .webmanifest");
+  console.log("  " + code + "/ (index.html + " + code + ".webmanifest)");
 }
 
 const indexPath = join(root, "index.html");
@@ -138,9 +168,9 @@ if (!re.test(index)) {
 index = index.replace(re, block);
 writeFileSync(indexPath, index);
 
-// sitemap.xml — home page + every city page.
+// sitemap.xml — home page + every city's short URL.
 const urls = [SITE + "/"].concat(
-  Object.keys(cities).map((slug) => SITE + "/city/" + slug + ".html")
+  Object.entries(cities).map(([slug, city]) => SITE + "/" + codeOf(slug, city))
 );
 const sitemap =
   '<?xml version="1.0" encoding="UTF-8"?>\n' +
@@ -151,7 +181,21 @@ const sitemap =
   "\n</urlset>\n";
 writeFileSync(join(root, "sitemap.xml"), sitemap);
 
+// _redirects — keep the old /city/<slug> URLs (and any already-installed
+// PWA whose start_url points there) working by 301'ing to the short code.
+const redirects =
+  Object.entries(cities)
+    .map(([slug, city]) => {
+      const code = codeOf(slug, city);
+      return (
+        "/city/" + slug + ".html  /" + code + "  301\n" +
+        "/city/" + slug + "  /" + code + "  301"
+      );
+    })
+    .join("\n") + "\n";
+writeFileSync(join(root, "_redirects"), redirects);
+
 console.log(
   "Generated " + written + " files for " + Object.keys(cities).length +
-  " cities, index.html, and sitemap.xml (" + urls.length + " urls)."
+  " cities, index.html, sitemap.xml (" + urls.length + " urls), and _redirects."
 );

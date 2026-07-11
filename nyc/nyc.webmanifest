@@ -1,0 +1,28 @@
+{
+  "name": "ball.town NYC",
+  "short_name": "ball.town NYC",
+  "description": "Upcoming games for every New York pro team.",
+  "start_url": "/nyc",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0D141D",
+  "theme_color": "#0D141D",
+  "icons": [
+    {
+      "src": "/assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

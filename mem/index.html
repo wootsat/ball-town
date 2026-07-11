@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{NAME}} · ball.town</title>
-<meta name="description" content="{{DESCRIPTION}}">
-<link rel="canonical" href="https://ball.town/{{CODE}}">
+<title>Memphis · ball.town</title>
+<meta name="description" content="Upcoming games, live scores, and TV listings for every pro team in Memphis — NFL, NBA, MLB, NHL, MLS and WNBA on one page, in your local time.">
+<link rel="canonical" href="https://ball.town/mem">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ball.town">
-<meta property="og:title" content="{{NAME}} · ball.town">
-<meta property="og:description" content="{{DESCRIPTION}}">
-<meta property="og:url" content="https://ball.town/{{CODE}}">
+<meta property="og:title" content="Memphis · ball.town">
+<meta property="og:description" content="Upcoming games, live scores, and TV listings for every pro team in Memphis — NFL, NBA, MLB, NHL, MLS and WNBA on one page, in your local time.">
+<meta property="og:url" content="https://ball.town/mem">
 <meta property="og:image" content="https://ball.town/assets/icons/icon-512.png">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="{{NAME}} · ball.town">
-<meta name="twitter:description" content="{{DESCRIPTION}}">
+<meta name="twitter:title" content="Memphis · ball.town">
+<meta name="twitter:description" content="Upcoming games, live scores, and TV listings for every pro team in Memphis — NFL, NBA, MLB, NHL, MLS and WNBA on one page, in your local time.">
 <meta name="twitter:image" content="https://ball.town/assets/icons/icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,8 +22,8 @@
 <link rel="stylesheet" href="../assets/style.css">
 <!-- installable web app ("Add to Home Screen"). Home-screen name =
      apple-mobile-web-app-title (iOS) / manifest short_name (Android). -->
-<link rel="manifest" href="{{MANIFEST}}">
-<meta name="apple-mobile-web-app-title" content="ball.town {{ABBR}}">
+<link rel="manifest" href="/mem/mem.webmanifest">
+<meta name="apple-mobile-web-app-title" content="ball.town MEM">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -33,20 +33,20 @@
 </head>
 <!-- GENERATED FILE — do not edit by hand.
      Edit tools/city.template.html or data/cities.js, then run: node tools/build.mjs -->
-<body data-city="{{SLUG}}">
+<body data-city="memphis">
 
 <header class="wrap">
   <nav class="topbar">
     <a class="brand" href="../index.html">ball<span>.town</span></a>
     <a class="crumb" href="../index.html">← All cities</a>
   </nav>
-  <h1 data-city-name>{{NAME}}</h1>
-  <p class="tagline">{{TAGLINE}}</p>
+  <h1 data-city-name>Memphis</h1>
+  <p class="tagline">Upcoming games for the Memphis Grizzlies, with dates and start times shown in your local time.</p>
   <div class="team-filter" id="team-filter" role="group" aria-label="Show or hide teams"></div>
 </header>
 
 <section class="wrap upnext" aria-label="Next games across all teams">
-  <div class="strip-label">{{STRIP_LABEL}}</div>
+  <div class="strip-label">Up next in Memphis</div>
   <div class="strip" id="upnext-strip"></div>
 </section>
 
