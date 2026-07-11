@@ -28,11 +28,29 @@ const esc = (s) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+const NUMWORDS = [
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+  "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen"
+];
+function countWord(n) {
+  const w = NUMWORDS[n] || String(n);
+  return w.charAt(0).toUpperCase() + w.slice(1);
+}
+
 function tagline(city) {
-  if (city.tagline) return city.tagline;
+  if (city.tagline) return city.tagline; // hand-written override wins
+  const teams = city.teams || [];
+  // One-team metros get a team-specific line; multi-team metros get the
+  // "<N> pro teams, one page." blurb (same shape as Minneapolis).
+  if (teams.length === 1) {
+    return (
+      "Upcoming games for the " + esc(teams[0].name) +
+      ", with dates and start times shown in your local time."
+    );
+  }
   return (
-    "<b>Every pro team, one page.</b> Upcoming games for every " +
-    esc(city.shortName) +
+    "<b>" + countWord(teams.length) + " pro teams, one page.</b> " +
+    "Upcoming games for every " + esc(city.shortName) +
     " club, with dates and start times shown in your local time."
   );
 }

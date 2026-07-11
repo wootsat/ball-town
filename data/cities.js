@@ -1722,13 +1722,24 @@
       ]
     },
 
-    "milwaukee": {
-      name: "Milwaukee",
-      shortName: "Milwaukee",
-      abbr: "MKE",
+    "wisconsin": {
+      name: "Wisconsin",
+      shortName: "Wisconsin",
+      abbr: "WI",
       tz: "America/Chicago",
       tzLabel: "CT",
       teams: [
+        {
+          key: "packers",
+          name: "Green Bay Packers",
+          short: "Packers",
+          leagueLabel: "NFL · Football",
+          sportPath: "football/nfl",
+          teamId: "9",
+          match: "Green Bay Packers",
+          venue: "Lambeau Field, Green Bay",
+          colors: ["#204E32", "#FFB612"]
+        },
         {
           key: "brewers",
           name: "Milwaukee Brewers",
@@ -2113,27 +2124,6 @@
           match: "Buffalo Sabres",
           venue: "KeyBank Center, Buffalo",
           colors: ["#00468B", "#FDB71A"]
-        }
-      ]
-    },
-
-    "green-bay": {
-      name: "Green Bay",
-      shortName: "Green Bay",
-      abbr: "GB",
-      tz: "America/Chicago",
-      tzLabel: "CT",
-      teams: [
-        {
-          key: "packers",
-          name: "Green Bay Packers",
-          short: "Packers",
-          leagueLabel: "NFL · Football",
-          sportPath: "football/nfl",
-          teamId: "9",
-          match: "Green Bay Packers",
-          venue: "Lambeau Field, Green Bay",
-          colors: ["#204E32", "#FFB612"]
         }
       ]
     },

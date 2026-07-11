@@ -32,6 +32,63 @@
     hiddenKeys = new Set();
   }
   let lastResults = [];
+  let scheduleData = null; // the loaded schedules.json, for on-demand adds
+
+  // ---------- custom teams (user-added, saved per city) ----------
+  // Every team across all cities is already in the daily cache
+  // (schedules.json is keyed by "<sportPath>:<teamId>"), so "add any pro
+  // team" just means surfacing a team the config already knows — no live
+  // ESPN call. The user's picks are saved locally, per city.
+
+  const ADDED_KEY = "balltown:added:" + citySlug;
+  const idOf = (t) => t.sportPath + ":" + t.teamId;
+
+  // Flat registry of every team in the config, keyed by id and tagged
+  // with its home-city name (shown in the search list).
+  const REGISTRY = {};
+  Object.keys(window.BALLTOWN.cities).forEach((slug) => {
+    const c = window.BALLTOWN.cities[slug];
+    c.teams.forEach((t) => {
+      const id = idOf(t);
+      if (!REGISTRY[id]) REGISTRY[id] = { team: t, cityName: c.name };
+    });
+  });
+
+  let addedIds;
+  try {
+    addedIds = JSON.parse(localStorage.getItem(ADDED_KEY) || "[]");
+  } catch (e) {
+    addedIds = [];
+  }
+  function saveAddedIds() {
+    try {
+      localStorage.setItem(ADDED_KEY, JSON.stringify(addedIds));
+    } catch (e) {
+      /* private mode — just skip persistence */
+    }
+  }
+
+  // Base city teams + user-added teams, deduped by id. Added teams are
+  // cloned with key = their global id so their chip/card data-key can
+  // never collide with a base team's (plain) key.
+  function activeTeams() {
+    const seen = {};
+    const out = [];
+    city.teams.forEach((t) => {
+      const id = idOf(t);
+      if (seen[id]) return;
+      seen[id] = true;
+      out.push(t);
+    });
+    addedIds.forEach((id) => {
+      if (seen[id]) return;
+      const reg = REGISTRY[id];
+      if (!reg) return;
+      seen[id] = true;
+      out.push(Object.assign({}, reg.team, { key: id, added: true }));
+    });
+    return out;
+  }
 
   // ---------- schedule data (daily static cache) ----------
   // Games are precomputed once a day by tools/fetch-schedules.mjs into
@@ -237,10 +294,17 @@
       : isFinal
       ? '<div class="next-when">Final</div>'
       : '<div class="next-when">' + dayLabel(item.ev.date) + "</div>";
+    let result = "";
+    if (isFinal) {
+      const r = live.us > live.them ? ["W", "g-win"]
+        : live.us < live.them ? ["L", "g-loss"] : ["T", "g-tie"];
+      result = ' <span class="g-result ' + r[1] + '">' + r[0] + "</span>";
+    }
     const bottomCell = isLive || isFinal
       ? '<div class="next-score"><span' + (isLive ? ' data-lscore="' + lkey + '"' : "") + ">" +
         live.us + "–" + live.them + "</span>" +
         (isLive ? ' <span class="next-status" data-lstatus="' + lkey + '">' + live.status + "</span>" : "") +
+        result +
         "</div>"
       : '<div class="next-time">' + fmtTime.format(item.ev.date) + " " +
         localTzLabel(item.ev.date) + "</div>";
@@ -262,32 +326,199 @@
 
   // ---------- team filter ----------
 
+  function chipHTML(t) {
+    return (
+      '<button type="button" class="chip' +
+      (t.added ? " is-added" : "") +
+      (hiddenKeys.has(t.key) ? " is-off" : "") +
+      '" data-key="' + t.key +
+      '" aria-pressed="' + !hiddenKeys.has(t.key) +
+      '" style="--tc:' + t.colors[0] + '">' +
+      (sportIcon(t)
+        ? '<span class="chip-ic" aria-hidden="true">' + sportIcon(t) + "</span>"
+        : '<span class="chip-dot"></span>') +
+      shortTeamName(t) +
+      (t.added
+        ? '<span class="chip-remove" role="button" aria-label="Remove team" title="Remove team">×</span>'
+        : "") +
+      "</button>"
+    );
+  }
+
+  let filterBound = false;
+  function saveHidden() {
+    try {
+      localStorage.setItem(HIDDEN_KEY, JSON.stringify(Array.from(hiddenKeys)));
+    } catch (e) {
+      /* private mode */
+    }
+  }
   function renderFilter() {
     const el = document.getElementById("team-filter");
     if (!el) return;
-    el.innerHTML = city.teams
-      .map(
-        (t) =>
-          '<button type="button" class="chip' +
-          (hiddenKeys.has(t.key) ? " is-off" : "") +
-          '" data-key="' + t.key +
-          '" aria-pressed="' + !hiddenKeys.has(t.key) +
-          '" style="--tc:' + t.colors[0] + '">' +
-          (sportIcon(t)
-            ? '<span class="chip-ic" aria-hidden="true">' + sportIcon(t) + "</span>"
-            : '<span class="chip-dot"></span>') +
-          shortTeamName(t) + "</button>"
-      )
-      .join("");
+    el.innerHTML =
+      activeTeams().map(chipHTML).join("") +
+      '<button type="button" class="chip chip-add" aria-label="Add a team" ' +
+      'title="Add any pro team"><span class="chip-plus" aria-hidden="true">+</span></button>';
+    ensureAddPanel(el);
+    if (filterBound) return;
+    filterBound = true;
     el.addEventListener("click", (e) => {
+      if (e.target.closest(".chip-add")) {
+        toggleAddPanel();
+        return;
+      }
+      const rm = e.target.closest(".chip-remove");
+      if (rm) {
+        const chip = rm.closest(".chip");
+        if (chip) removeTeam(chip.dataset.key);
+        return;
+      }
       const btn = e.target.closest(".chip");
       if (!btn) return;
       const key = btn.dataset.key;
       if (hiddenKeys.has(key)) hiddenKeys.delete(key);
       else hiddenKeys.add(key);
-      localStorage.setItem(HIDDEN_KEY, JSON.stringify(Array.from(hiddenKeys)));
+      saveHidden();
       applyFilter();
     });
+  }
+
+  // ---------- "add any team" search panel ----------
+  // Injected once via JS (no template change), so it lives on every city
+  // page. Searches the config registry for teams not already on the page.
+
+  function ensureAddPanel(filterEl) {
+    if (document.getElementById("team-add")) return;
+    const panel = document.createElement("div");
+    panel.id = "team-add";
+    panel.className = "team-add";
+    panel.hidden = true;
+    panel.innerHTML =
+      '<input type="text" id="team-add-input" class="team-add-input" ' +
+      'placeholder="Add any team — search by name, city, or league" ' +
+      'autocomplete="off" autocorrect="off" spellcheck="false">' +
+      '<ul class="team-add-results" id="team-add-results"></ul>';
+    filterEl.insertAdjacentElement("afterend", panel);
+
+    const input = panel.querySelector("#team-add-input");
+    const results = panel.querySelector("#team-add-results");
+    input.addEventListener("input", () => renderAddResults(input.value));
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeAddPanel();
+    });
+    results.addEventListener("click", (e) => {
+      const li = e.target.closest("li[data-id]");
+      if (!li) return;
+      addTeam(li.dataset.id);
+      input.value = "";
+      renderAddResults(""); // refresh (added team drops out of the list)
+      input.focus();
+    });
+    // Click anywhere outside the panel (except the + chip) closes it.
+    document.addEventListener("click", (e) => {
+      if (panel.hidden) return;
+      if (panel.contains(e.target) || e.target.closest(".chip-add")) return;
+      closeAddPanel();
+    });
+  }
+
+  function toggleAddPanel() {
+    const panel = document.getElementById("team-add");
+    if (!panel) return;
+    if (panel.hidden) {
+      panel.hidden = false;
+      renderAddResults("");
+      panel.querySelector("#team-add-input").focus();
+    } else {
+      closeAddPanel();
+    }
+  }
+  function closeAddPanel() {
+    const panel = document.getElementById("team-add");
+    if (panel) panel.hidden = true;
+  }
+
+  function renderAddResults(query) {
+    const results = document.getElementById("team-add-results");
+    if (!results) return;
+    const q = query.trim().toLowerCase();
+    const active = {};
+    activeTeams().forEach((t) => (active[idOf(t)] = true));
+    if (!q) {
+      results.innerHTML =
+        '<li class="team-add-hint">Start typing a team, city, or league…</li>';
+      return;
+    }
+    const matches = [];
+    Object.keys(REGISTRY).forEach((id) => {
+      if (active[id]) return; // already on the page
+      const reg = REGISTRY[id];
+      const t = reg.team;
+      const hay = (
+        t.name + " " + (t.short || "") + " " + reg.cityName + " " + t.leagueLabel
+      ).toLowerCase();
+      if (hay.indexOf(q) === -1) return;
+      matches.push(reg);
+    });
+    matches.sort((a, b) => a.team.name.localeCompare(b.team.name));
+    if (!matches.length) {
+      results.innerHTML =
+        '<li class="team-add-hint">No teams match “' + query.trim() + "”.</li>";
+      return;
+    }
+    results.innerHTML = matches
+      .slice(0, 8)
+      .map((reg) => {
+        const t = reg.team;
+        return (
+          '<li data-id="' + idOf(t) + '" style="--tc:' + t.colors[0] + '">' +
+          '<span class="ta-ic" aria-hidden="true">' + sportIcon(t) + "</span>" +
+          '<span class="ta-name">' + t.name + "</span>" +
+          '<span class="ta-meta">' + t.leagueLabel + " · " + reg.cityName + "</span>" +
+          "</li>"
+        );
+      })
+      .join("");
+  }
+
+  function addTeam(id) {
+    if (!REGISTRY[id]) return;
+    if (addedIds.indexOf(id) !== -1) return;
+    if (city.teams.some((t) => idOf(t) === id)) return; // already a base team
+    addedIds.push(id);
+    saveAddedIds();
+    hiddenKeys.delete(id); // un-hide if it was hidden before being removed
+    saveHidden();
+    rebuildResults();
+  }
+
+  function removeTeam(key) {
+    const i = addedIds.indexOf(key); // added chips use key = id
+    if (i === -1) return;
+    addedIds.splice(i, 1);
+    saveAddedIds();
+    hiddenKeys.delete(key);
+    saveHidden();
+    rebuildResults();
+  }
+
+  // Recompute the results array IN PLACE (preserving live overlays) after
+  // an add/remove, then re-render. Mutating in place keeps startLive()'s
+  // polling reference to the same array valid.
+  function rebuildResults() {
+    const next = activeTeams().map((team) => {
+      const prev = lastResults.find((r) => idOf(r.team) === idOf(team));
+      const games = scheduleData ? gamesForTeam(scheduleData, team) : null;
+      const r = { team: team, events: games || [], error: games ? null : true };
+      if (prev && prev.liveEntry !== undefined) r.liveEntry = prev.liveEntry;
+      return r;
+    });
+    lastResults.length = 0;
+    Array.prototype.push.apply(lastResults, next);
+    renderFilter();
+    renderTeams(lastResults);
+    applyFilter();
   }
 
   function applyFilter() {
@@ -308,12 +539,10 @@
     const all = [];
     lastResults.forEach((r) => {
       if (hiddenKeys.has(r.team.key)) return;
-      displayEvents(r).forEach((ev) => {
-        // Keep the strip forward-looking: live games belong, finished
-        // ones don't (they still show "Final" on the team card).
-        if (ev.live && ev.live.state === "final") return;
-        all.push({ team: r.team, ev });
-      });
+      // Includes live + finished-today games (finals stay as "Final +
+      // score" until the 4am rollover, same as on the team card) plus
+      // upcoming games; displayEvents already drops past-4am games.
+      displayEvents(r).forEach((ev) => all.push({ team: r.team, ev }));
     });
     all.sort((a, b) => a.ev.date - b.ev.date);
     stripEl.innerHTML = all.length
@@ -653,14 +882,15 @@
       data = await loadSchedules();
     } catch (err) {
       console.error("schedules.json", err);
-      const failed = city.teams.map((team) => ({ team, events: [], error: err }));
+      const failed = activeTeams().map((team) => ({ team, events: [], error: err }));
       teamsEl.innerHTML = failed.map((r) => teamCard(r.team, r.events, r.error)).join("");
       lastResults = failed;
       applyFilter();
       return;
     }
+    scheduleData = data; // kept so added teams can be rendered on demand
 
-    const results = city.teams.map((team) => {
+    const results = activeTeams().map((team) => {
       const games = gamesForTeam(data, team);
       return { team, events: games || [], error: games ? null : true };
     });

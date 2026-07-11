@@ -1,8 +1,8 @@
 {
-  "name": "ball.town MKE",
-  "short_name": "ball.town MKE",
-  "description": "Upcoming games for every Milwaukee pro team.",
-  "start_url": "milwaukee.html",
+  "name": "ball.town WI",
+  "short_name": "ball.town WI",
+  "description": "Upcoming games for every Wisconsin pro team.",
+  "start_url": "wisconsin.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0D141D",
