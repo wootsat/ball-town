@@ -197,12 +197,12 @@ h1{
   padding:18px 20px 14px;
   border-bottom:6px solid var(--t2,var(--line));
   background:var(--t1,var(--ink));
-  color:#fff;
+  color:var(--head-fg,#fff);
   position:relative;overflow:hidden;
 }
 .team-ic{
   position:absolute;right:14px;top:50%;transform:translateY(-50%);
-  color:#fff;opacity:.16;pointer-events:none;
+  color:var(--head-fg,#fff);opacity:.16;pointer-events:none;
 }
 .team-ic svg{width:64px;height:64px;display:block}
 .team.off .team-ic{color:color-mix(in srgb,var(--t1) 60%,var(--lift));opacity:.15}
@@ -249,7 +249,7 @@ h1{
 .home-tag{
   display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;
   padding:1px 6px;border-radius:4px;margin-left:8px;vertical-align:1px;
-  background:color-mix(in srgb,var(--t1) 78%,var(--lift));color:#fff;text-transform:uppercase;
+  background:color-mix(in srgb,var(--t1) 78%,var(--lift));color:var(--head-fg,#fff);text-transform:uppercase;
 }
 .g-tag{
   display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;

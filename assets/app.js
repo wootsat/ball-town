@@ -12,7 +12,7 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.1";
+  const APP_VERSION = "2026-07-11.2";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /live Pages Function (edge-cached ~30s).
@@ -294,6 +294,24 @@
     );
   }
 
+  // Readable text color (near-black vs white) for text laid over a solid
+  // team color. White teams (Whitecaps) and bright golds/yellows/light
+  // blues need dark text; everything darker keeps white. WCAG luminance.
+  function readableOn(hex) {
+    const m = /^#?([0-9a-fA-F]{6})$/.exec(hex || "");
+    if (!m) return "#fff";
+    const n = parseInt(m[1], 16);
+    const lin = (v) => {
+      const s = v / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    const L =
+      0.2126 * lin((n >> 16) & 255) +
+      0.7152 * lin((n >> 8) & 255) +
+      0.0722 * lin(n & 255);
+    return L > 0.5 ? "#0D141D" : "#fff";
+  }
+
   function teamCard(team, events, error) {
     const head =
       '<div class="team-head">' +
@@ -321,7 +339,8 @@
     return (
       '<section class="team' + extraClass + '" data-key="' + team.key +
       '" style="--t1:' + team.colors[0] +
-      ";--t2:" + team.colors[1] + '">' + head + body + "</section>"
+      ";--t2:" + team.colors[1] +
+      ";--head-fg:" + readableOn(team.colors[0]) + '">' + head + body + "</section>"
     );
   }
 

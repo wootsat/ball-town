@@ -534,9 +534,9 @@
     },
 
     "dallas": {
-      name: "Dallas–Fort Worth",
+      name: "Dallas",
       shortName: "Dallas",
-      abbr: "DFW",
+      abbr: "DAL",
       tz: "America/Chicago",
       tzLabel: "CT",
       teams: [
