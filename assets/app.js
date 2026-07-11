@@ -90,6 +90,42 @@
     return out;
   }
 
+  // ---------- custom card order (drag-to-reorder, saved per city) ----------
+  // A saved array of team keys. When present it overrides the default
+  // "in-season first" card sort; both the chips and the cards follow it.
+  const ORDER_KEY = "balltown:order:" + citySlug;
+  function loadOrder() {
+    try {
+      return JSON.parse(localStorage.getItem(ORDER_KEY) || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveOrder(order) {
+    try {
+      localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+    } catch (e) {
+      /* private mode */
+    }
+  }
+  // Stable-sort a list by the saved order; items with no saved position
+  // keep their natural order at the end. No-op when nothing is saved.
+  function applyOrder(list, keyFn) {
+    const order = loadOrder();
+    if (!order.length) return list;
+    const idx = {};
+    order.forEach((k, i) => (idx[k] = i));
+    const at = (o) =>
+      Object.prototype.hasOwnProperty.call(idx, keyFn(o)) ? idx[keyFn(o)] : Infinity;
+    return list.slice().sort((a, b) => at(a) - at(b));
+  }
+  function orderedActiveTeams() {
+    return applyOrder(activeTeams(), (t) => t.key);
+  }
+
+  // Whether the whole team-chip row is collapsed (saved per city).
+  const COLLAPSE_KEY = "balltown:chips-collapsed:" + citySlug;
+
   // ---------- schedule data (daily static cache) ----------
   // Games are precomputed once a day by tools/fetch-schedules.mjs into
   // data/schedules.json; the browser just reads that one file — no live
@@ -346,6 +382,7 @@
   }
 
   let filterBound = false;
+  let dragSuppressClick = false; // set after a drag so the trailing click is ignored
   function saveHidden() {
     try {
       localStorage.setItem(HIDDEN_KEY, JSON.stringify(Array.from(hiddenKeys)));
@@ -357,13 +394,19 @@
     const el = document.getElementById("team-filter");
     if (!el) return;
     el.innerHTML =
-      activeTeams().map(chipHTML).join("") +
+      orderedActiveTeams().map(chipHTML).join("") +
       '<button type="button" class="chip chip-add" aria-label="Add a team" ' +
       'title="Add any pro team"><span class="chip-plus" aria-hidden="true">+</span></button>';
     ensureAddPanel(el);
     if (filterBound) return;
     filterBound = true;
+    initFilterCollapse(el);
+    initChipDrag(el);
     el.addEventListener("click", (e) => {
+      if (dragSuppressClick) {
+        dragSuppressClick = false;
+        return; // this click is the tail of a drag — don't toggle
+      }
       if (e.target.closest(".chip-add")) {
         toggleAddPanel();
         return;
@@ -519,6 +562,143 @@
     renderFilter();
     renderTeams(lastResults);
     applyFilter();
+  }
+
+  // ---------- drag a chip to reorder the cards ----------
+  // One Pointer Events path for mouse + touch. Mouse: a small move starts
+  // the drag (a plain click still toggles). Touch: a ~450ms long-press
+  // starts it (a quick tap toggles, an early move scrolls the page). The
+  // dragged chip hops between siblings; on release we persist the order
+  // and re-sort the cards below to match.
+  function initChipDrag(el) {
+    let cand = null; // {chip, startX, startY, pointerType, active, timer}
+
+    function stopListening() {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+    }
+    function reset() {
+      if (cand) {
+        if (cand.timer) clearTimeout(cand.timer);
+        if (cand.chip) cand.chip.classList.remove("dragging");
+      }
+      cand = null;
+      stopListening();
+    }
+    function activate() {
+      if (!cand) return;
+      cand.active = true;
+      cand.chip.classList.add("dragging");
+      closeAddPanel();
+    }
+    function onMove(e) {
+      if (!cand) return;
+      if (!cand.active) {
+        const dist = Math.abs(e.clientX - cand.startX) + Math.abs(e.clientY - cand.startY);
+        if (cand.pointerType === "mouse") {
+          if (dist > 5) activate(); // mouse: nudge to start dragging
+        } else if (dist > 12) {
+          reset(); // touch moved before the long-press fired → it's a scroll
+          return;
+        }
+        if (!cand.active) return;
+      }
+      // Reorder: drop the dragged chip next to whichever chip is under the
+      // pointer (left half → before, right half → after).
+      const raw = document.elementFromPoint(e.clientX, e.clientY);
+      const over = raw ? raw.closest(".chip") : null;
+      if (!over || over === cand.chip || over.classList.contains("chip-add")) return;
+      const rect = over.getBoundingClientRect();
+      const before = e.clientX < rect.left + rect.width / 2;
+      const parent = cand.chip.parentNode;
+      parent.insertBefore(cand.chip, before ? over : over.nextSibling);
+      const addChip = parent.querySelector(".chip-add");
+      if (addChip && addChip !== parent.lastElementChild) parent.appendChild(addChip);
+    }
+    function onUp() {
+      if (cand && cand.active) {
+        const parent = cand.chip.parentNode;
+        const order = [].slice
+          .call(parent.querySelectorAll(".chip:not(.chip-add)"))
+          .map((c) => c.dataset.key);
+        saveOrder(order);
+        dragSuppressClick = true; // swallow the click that follows this drag
+        setTimeout(() => (dragSuppressClick = false), 400);
+        renderTeams(lastResults); // re-sort the cards to match
+        applyFilter();
+      }
+      reset();
+    }
+    el.addEventListener("pointerdown", (e) => {
+      if (e.button != null && e.button !== 0) return; // primary button only
+      const chip = e.target.closest(".chip");
+      if (!chip || chip.classList.contains("chip-add")) return;
+      if (e.target.closest(".chip-remove")) return; // let the × do its thing
+      cand = {
+        chip: chip,
+        startX: e.clientX,
+        startY: e.clientY,
+        pointerType: e.pointerType,
+        active: false,
+        timer: null
+      };
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onUp);
+      if (e.pointerType !== "mouse") {
+        cand.timer = setTimeout(activate, 450); // long-press to start on touch
+      }
+    });
+    // Block page scroll only while an active touch drag is under way.
+    document.addEventListener(
+      "touchmove",
+      (e) => {
+        if (cand && cand.active) e.preventDefault();
+      },
+      { passive: false }
+    );
+  }
+
+  // ---------- collapse the whole chip row ----------
+  // A small "Teams" header (injected once) shows/hides the chip row so a
+  // viewer who doesn't want the filter/reorder/add controls can tuck them
+  // away. Choice is remembered per city.
+  function initFilterCollapse(filterEl) {
+    if (document.getElementById("filter-toggle")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "filter-toggle";
+    btn.className = "filter-toggle";
+    btn.setAttribute("aria-controls", "team-filter");
+    btn.innerHTML =
+      '<span class="filter-caret" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" ' +
+      'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M6 9l6 6 6-6"/></svg></span><span>Teams</span>';
+    filterEl.parentNode.insertBefore(btn, filterEl);
+
+    let collapsed = false;
+    try {
+      collapsed = localStorage.getItem(COLLAPSE_KEY) === "1";
+    } catch (e) {
+      /* private mode */
+    }
+    function apply() {
+      filterEl.hidden = collapsed;
+      btn.classList.toggle("is-collapsed", collapsed);
+      btn.setAttribute("aria-expanded", String(!collapsed));
+      if (collapsed) closeAddPanel();
+    }
+    apply();
+    btn.addEventListener("click", () => {
+      collapsed = !collapsed;
+      try {
+        localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0");
+      } catch (e) {
+        /* private mode */
+      }
+      apply();
+    });
   }
 
   function applyFilter() {
@@ -809,12 +989,17 @@
   function renderTeams(results) {
     const teamsEl = document.getElementById("teams");
     // in-season teams first, offseason/error last
-    const rows = results.map((r) => ({
+    let rows = results.map((r) => ({
       team: r.team,
       error: r.error,
       events: displayEvents(r)
     }));
-    rows.sort((a, b) => (b.events.length ? 1 : 0) - (a.events.length ? 1 : 0));
+    // A user-set drag order wins; otherwise default to in-season first.
+    if (loadOrder().length) {
+      rows = applyOrder(rows, (r) => r.team.key);
+    } else {
+      rows.sort((a, b) => (b.events.length ? 1 : 0) - (a.events.length ? 1 : 0));
+    }
     teamsEl.innerHTML = rows.map((r) => teamCard(r.team, r.events, r.error)).join("");
   }
 

@@ -210,6 +210,51 @@ schedule.
   (`.ministicky.show{transform:none}`) and layout are testable
   statically (disable the transition, toggle the class).
 
+## Team-chip controls (client-side, per-user)
+
+The chip row (`#team-filter`, built by `renderFilter` in app.js) carries
+four independent per-viewer preferences, each saved in `localStorage`
+keyed by city. All are **pure client JS/CSS — no rebuild, no refetch, no
+server.** Because `schedules.json` already holds *every* team across all
+cities (keyed by `<sportPath>:<teamId>`), none of these need an ESPN call.
+
+- **Hide/show** — tap a chip to gray it out and drop the team's card +
+  strip rows. `balltown:hidden:<slug>` (a Set of team keys). CSS
+  `.team.filtered{display:none}`.
+- **Add any team** — the trailing dashed **`+`** chip opens a JS-injected
+  search panel (`#team-add`, `ensureAddPanel`) that searches a flat
+  `REGISTRY` of every config team (by name/city/league) for teams not
+  already on the page; picking one adds a full card + strip entry from the
+  cache. `balltown:added:<slug>` (array of ids). Added teams are **cloned
+  with `key = "<sportPath>:<teamId>"`** so their chip/card `data-key` can
+  never collide with a base team's plain key; they render with a `×`
+  remove control.
+- **Drag to reorder** — dragging a chip reorders that team's card below
+  (`initChipDrag`, one Pointer Events path: **mouse = small-move drag,
+  touch = ~450ms long-press then drag**; an early touch-move scrolls
+  instead; `touchmove` `preventDefault` blocks scroll only while actively
+  dragging). A drag sets `dragSuppressClick` so the trailing click doesn't
+  toggle hide. `balltown:order:<slug>` (array of keys). When present it
+  **overrides the default "in-season first" card sort** in `renderTeams`;
+  new/added teams with no saved position fall to the end.
+- **Collapse the whole row** — a JS-injected **Teams ▾** header
+  (`initFilterCollapse`) hides the entire chip row.
+  `balltown:chips-collapsed:<slug>` (`"1"`/`"0"`).
+
+`activeTeams()` = base `city.teams` + added, deduped by id;
+`orderedActiveTeams()` applies the saved order; both chips and cards use
+them so all four features interoperate. `rebuildResults()` recomputes the
+results array **in place** on add/remove so `startLive`'s polling
+reference stays valid (preserves live overlays). The add-panel, drag
+init, and collapse toggle are injected once (guarded), so they exist on
+every city page without touching the template.
+
+Two rendering gotchas this code relies on (see also Gotchas below):
+`[hidden]` needs an explicit `.team-filter[hidden]{display:none}` (author
+`display:flex` outranks the UA `[hidden]` rule), and the collapse caret is
+a `<span>` wrapper — CSS `transform` on an SVG **root** element computes to
+identity in browsers, so rotating the svg directly does nothing.
+
 ## Gotchas
 
 - `.wrap{margin:0 auto}` does the horizontal centering. Section rules
