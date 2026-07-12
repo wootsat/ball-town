@@ -329,7 +329,7 @@ footer{
 .social a{display:inline-flex;color:var(--ink-soft);transition:color .15s}
 .social a:hover{color:var(--ink)}
 .social svg{width:20px;height:20px;display:block}
-.disclaimer{flex-basis:100%;margin-top:2px;font-size:11px;line-height:1.5;color:var(--ink-soft);opacity:.7;max-width:80ch}
+.disclaimer{flex-basis:100%;margin-top:2px;font-size:11px;line-height:1.5;color:var(--ink-soft);opacity:.7}
 
 /* ---------- add-to-home-screen banner ---------- */
 .a2hs{

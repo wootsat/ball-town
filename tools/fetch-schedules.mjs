@@ -92,15 +92,17 @@ async function channelsFor(ev, game) {
     // applies (Fox/CBS included).
     const isNFL = game.sportPath === "football/nfl";
     const NFL_NATIONAL = /\b(?:NBC|ABC|ESPN)\b/i;
+    // The national Fox network/cable — NOT local "Fox 5 <City>" affiliates.
+    // Fox is regional for the NFL but national for every other league.
+    const FOX_NATIONAL = /^(?:FOX|FS1|FS2)$/i;
     // "Nat'l Stream" = a national direct-to-consumer streamer that carries
-    // the game for any basic subscriber (no sports upsell). We match the
-    // streamer name AND require market:National — that's what separates the
-    // included national feeds (NFL Prime Video, MLB Apple TV+/Peacock, all
-    // market:National) from the upsell/regional look-alikes: MLS "Apple TV"
-    // (Season Pass) has NO market, "Prime Video-Seattle" is regional (Home),
-    // and MLB.TV / League Pass / ESPN+ / vMVPDs (YouTube TV, Fubo) never
-    // match the name.
-    const NATL_STREAMERS = /peacock|prime video|amazon prime|paramount\+|disney\+|apple tv/i;
+    // the game for any basic subscriber. These services are national by
+    // nature, so a NAME match is enough (note MLS "Apple TV" = Season Pass
+    // shows with no market but still counts). "Prime Video" is the one
+    // exception: Amazon also runs regional MLB feeds ("Prime Video-Seattle"),
+    // so it only counts on a National market. MLB.TV / League Pass / ESPN+
+    // and vMVPDs (YouTube TV, Fubo) never match.
+    const NATL_STREAMERS = /peacock|paramount\+|disney\+|apple tv|espn unlmtd|espn unlimited|netflix/i;
     const names = [];
     let national = false;
     let natStream = false;
@@ -109,17 +111,22 @@ async function channelsFor(ev, game) {
       const type = b.type && b.type.shortName;
       const name = b.media && (b.media.shortName || b.media.name);
       if (!name) return;
-      // "National TV" = a national-market TV broadcast (ESPN, FOX, NBC,
-      // MLB Net…). Excludes the always-on league streaming packages
-      // (MLB.TV, League Pass = type "Streaming") and radio.
-      if (market === "National" && type === "TV") {
+      // "National TV" = a national-market TV broadcast. NFL regular/pre-
+      // season is the exception (Fox & CBS are regional there — only NBC,
+      // ABC, ESPN count). Every other league (and the NFL playoffs) also
+      // counts the national Fox network (FOX/FS1/FS2), which ESPN often
+      // leaves market-less — but NOT local "Fox 5 <City>" affiliates.
+      // Streaming packages (MLB.TV, League Pass = type "Streaming") and
+      // radio are excluded here.
+      if (type === "TV") {
         if (isNFL && !game.postseason) {
-          if (NFL_NATIONAL.test(name)) national = true;
-        } else {
+          if (market === "National" && NFL_NATIONAL.test(name)) national = true;
+        } else if (market === "National" || FOX_NATIONAL.test(name)) {
           national = true;
         }
       }
-      if (market === "National" && NATL_STREAMERS.test(name)) natStream = true;
+      if (NATL_STREAMERS.test(name)) natStream = true;
+      else if (market === "National" && /prime video/i.test(name)) natStream = true;
       if (market && market !== "National" && market !== ourMarket) return;
       if (oppNick && name.toLowerCase().indexOf(oppNick) !== -1) return;
       if (names.indexOf(name) === -1) names.push(name);
