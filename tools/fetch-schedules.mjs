@@ -93,10 +93,14 @@ async function channelsFor(ev, game) {
     const isNFL = game.sportPath === "football/nfl";
     const NFL_NATIONAL = /\b(?:NBC|ABC|ESPN)\b/i;
     // "Nat'l Stream" = a national direct-to-consumer streamer that carries
-    // the game for any basic subscriber (no sports upsell). MLB.TV / League
-    // Pass / ESPN+ / MLS Season Pass and vMVPDs (YouTube TV, Fubo) do NOT
-    // match this allowlist.
-    const NATL_STREAMERS = /peacock|prime video|amazon prime|paramount\+|disney\+|apple tv\+/i;
+    // the game for any basic subscriber (no sports upsell). We match the
+    // streamer name AND require market:National — that's what separates the
+    // included national feeds (NFL Prime Video, MLB Apple TV+/Peacock, all
+    // market:National) from the upsell/regional look-alikes: MLS "Apple TV"
+    // (Season Pass) has NO market, "Prime Video-Seattle" is regional (Home),
+    // and MLB.TV / League Pass / ESPN+ / vMVPDs (YouTube TV, Fubo) never
+    // match the name.
+    const NATL_STREAMERS = /peacock|prime video|amazon prime|paramount\+|disney\+|apple tv/i;
     const names = [];
     let national = false;
     let natStream = false;
@@ -115,7 +119,7 @@ async function channelsFor(ev, game) {
           national = true;
         }
       }
-      if (NATL_STREAMERS.test(name)) natStream = true;
+      if (market === "National" && NATL_STREAMERS.test(name)) natStream = true;
       if (market && market !== "National" && market !== ourMarket) return;
       if (oppNick && name.toLowerCase().indexOf(oppNick) !== -1) return;
       if (names.indexOf(name) === -1) names.push(name);
