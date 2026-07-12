@@ -12,7 +12,7 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.2";
+  const APP_VERSION = "2026-07-11.5";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /live Pages Function (edge-cached ~30s).
@@ -155,6 +155,7 @@
       opponent: g.opponent,
       label: g.label || null,
       national: !!g.national,
+      natStream: !!g.natStream,
       channels: g.channels || []
     }));
     return games;
@@ -280,6 +281,7 @@
       (ev.home ? '<span class="home-tag">Home</span>' : "") +
       (extras && ev.label ? '<span class="g-tag g-tag-pre">' + ev.label + "</span>" : "") +
       (extras && ev.national ? '<span class="g-tag g-tag-nat">Nat\'l TV</span>' : "") +
+      (extras && ev.natStream ? '<span class="g-tag g-tag-stream">Nat\'l Stream</span>' : "") +
       (isLive || isFinal
         ? '<span class="g-score"' + (isLive ? ' data-lscore="' + lkey + '"' : "") + ">" +
           live.us + "–" + live.them + "</span>"
@@ -727,6 +729,13 @@
       '<path d="M6 9l6 6 6-6"/></svg></span><span>Teams</span>';
     filterEl.parentNode.insertBefore(btn, filterEl);
 
+    // How-to hint under the chips (hidden along with them when collapsed).
+    const hint = document.createElement("p");
+    hint.id = "filter-hint";
+    hint.className = "filter-hint";
+    hint.textContent = "Click (Tap on mobile) to disable. Drag to re-order.";
+    filterEl.insertAdjacentElement("afterend", hint);
+
     let collapsed = false;
     try {
       collapsed = localStorage.getItem(COLLAPSE_KEY) === "1";
@@ -735,6 +744,7 @@
     }
     function apply() {
       filterEl.hidden = collapsed;
+      hint.hidden = collapsed;
       btn.classList.toggle("is-collapsed", collapsed);
       btn.setAttribute("aria-expanded", String(!collapsed));
       if (collapsed) closeAddPanel();
@@ -763,7 +773,19 @@
     renderStrip();
   }
 
+  // The strip heading is baked per-city ("Up next in the Twin Cities").
+  // Once the viewer has added teams from other cities it's no longer just
+  // "their city", so drop the locale and show a plain "Up next".
+  let baseStripLabel = null;
+  function updateStripLabel() {
+    const el = document.querySelector(".strip-label");
+    if (!el) return;
+    if (baseStripLabel === null) baseStripLabel = el.textContent; // capture baked value once
+    el.textContent = addedIds.length ? "Up next" : baseStripLabel;
+  }
+
   function renderStrip() {
+    updateStripLabel();
     const stripEl = document.getElementById("upnext-strip");
     if (!lastResults.length) return; // still loading
     const all = [];

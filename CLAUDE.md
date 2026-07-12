@@ -159,6 +159,14 @@ endpoint drops preseason/next-season games inconsistently per league.
   otherwise mark nearly every game national. Stored as `national:true`
   in schedules.json; app.js renders it (and the `label:"Preseason"` tag)
   as small pills in the game row.
+  - **NFL exception** (`channelsFor`): Fox & CBS carry *regional*
+    Sunday-afternoon windows, so in the regular/pre-season they DON'T earn
+    the tag — only **NBC, ABC, ESPN** do (allowlist regex on the network
+    name). In the **playoffs** (`postseason`, ESPN seasonType **type 3**)
+    the normal rule applies, so Fox/CBS count. `toGame` passes `sportPath`
+    + `postseason` through the (JSON-invisible) game object for this.
+    Note: this allowlist also skips NFL Network regular-season games
+    (Amazon TNF is `Streaming`, so never tagged anyway).
 - A team with zero events in the ~8-month window is a real state
   (leagues publish next season's schedule late) — that's the
   "Offseason" card, not a bug.

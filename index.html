@@ -29,7 +29,11 @@
     <a class="brand" href="index.html">ball<span>.town</span></a>
   </nav>
   <h1>Pick your town</h1>
-  <p class="tagline"><b>Every pro team in your city, one page.</b> Upcoming games across the NFL, NBA, MLB, NHL, MLS, and WNBA — live schedules, local time.</p>
+  <div class="intro" id="intro">
+    <button type="button" class="intro-x" id="intro-x" aria-label="Dismiss">×</button>
+    <p class="tagline"><b>Every pro team in your city, one page.</b> Upcoming games across the NFL, NBA, MLB, NHL, MLS, and WNBA — live schedules, local time.</p>
+  </div>
+  <script>try{if(localStorage.getItem("balltown:intro-dismissed"))document.getElementById("intro").hidden=true;}catch(e){}</script>
   <input type="search" id="city-search" class="city-search" placeholder="Search a city or team…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search cities and teams">
 </header>
 
@@ -246,6 +250,16 @@
 
 <script>
 (function () {
+  // Dismissible intro blurb (remembered locally).
+  var intro = document.getElementById("intro");
+  var introX = document.getElementById("intro-x");
+  if (intro && introX) {
+    introX.addEventListener("click", function () {
+      intro.hidden = true;
+      try { localStorage.setItem("balltown:intro-dismissed", "1"); } catch (e) {}
+    });
+  }
+
   var input = document.getElementById("city-search");
   if (!input) return;
   var cards = [].slice.call(document.querySelectorAll(".city-card"));

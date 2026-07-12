@@ -69,7 +69,10 @@ function toGame(ev, id, team) {
     date: new Date(ev.date),
     home: home,
     opponent: opponent || ev.shortName || "TBD",
-    label: preseason ? "Preseason" : null
+    label: preseason ? "Preseason" : null,
+    // internal (not written to JSON): used by channelsFor's national rule.
+    sportPath: team.sportPath,
+    postseason: /\/types\/3(\?|$)/.test(typeRef) // ESPN type 3 = playoffs
   };
 }
 
@@ -82,8 +85,21 @@ async function channelsFor(ev, game) {
     const words = (game.opponent || "").toLowerCase().split(/\s+/);
     let oppNick = words.pop() || "";
     if (oppNick === "fc") oppNick = words.pop() || "";
+    // NFL only: Fox & CBS carry regional Sunday-afternoon windows (you get
+    // your market's game, not "the" national game), so they DON'T earn the
+    // Nat'l TV tag in the regular/pre-season — only NBC, ABC, ESPN do. In
+    // the PLAYOFFS every network's game is national, so the normal rule
+    // applies (Fox/CBS included).
+    const isNFL = game.sportPath === "football/nfl";
+    const NFL_NATIONAL = /\b(?:NBC|ABC|ESPN)\b/i;
+    // "Nat'l Stream" = a national direct-to-consumer streamer that carries
+    // the game for any basic subscriber (no sports upsell). MLB.TV / League
+    // Pass / ESPN+ / MLS Season Pass and vMVPDs (YouTube TV, Fubo) do NOT
+    // match this allowlist.
+    const NATL_STREAMERS = /peacock|prime video|amazon prime|paramount\+|disney\+|apple tv\+/i;
     const names = [];
     let national = false;
+    let natStream = false;
     (data.items || []).forEach((b) => {
       const market = b.market && b.market.type;
       const type = b.type && b.type.shortName;
@@ -92,14 +108,21 @@ async function channelsFor(ev, game) {
       // "National TV" = a national-market TV broadcast (ESPN, FOX, NBC,
       // MLB Net…). Excludes the always-on league streaming packages
       // (MLB.TV, League Pass = type "Streaming") and radio.
-      if (market === "National" && type === "TV") national = true;
+      if (market === "National" && type === "TV") {
+        if (isNFL && !game.postseason) {
+          if (NFL_NATIONAL.test(name)) national = true;
+        } else {
+          national = true;
+        }
+      }
+      if (NATL_STREAMERS.test(name)) natStream = true;
       if (market && market !== "National" && market !== ourMarket) return;
       if (oppNick && name.toLowerCase().indexOf(oppNick) !== -1) return;
       if (names.indexOf(name) === -1) names.push(name);
     });
-    return { names: names, national: national };
+    return { names: names, national: national, natStream: natStream };
   } catch (e) {
-    return { names: [], national: false };
+    return { names: [], national: false, natStream: false };
   }
 }
 
@@ -144,6 +167,7 @@ async function fetchUpcoming(team) {
       if (game.label) out.label = game.label;
       if (bc.names.length) out.channels = bc.names;
       if (bc.national) out.national = true;
+      if (bc.natStream) out.natStream = true;
       return out;
     })
   );

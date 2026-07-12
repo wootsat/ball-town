@@ -45,6 +45,23 @@ h1{
 .tagline{margin-top:10px;font-size:16px;color:var(--ink-soft);max-width:52ch}
 .tagline b{color:var(--ink);font-weight:600}
 
+/* index intro: full-width line (wraps by browser width, not a char cap),
+   dismissible via the × (state saved in localStorage). */
+.intro{position:relative;margin-top:10px;padding-right:30px}
+.intro .tagline{margin-top:0;max-width:none}
+.intro[hidden]{display:none}
+.intro-x{
+  position:absolute;top:-4px;right:0;
+  width:26px;height:26px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:none;border:0;cursor:pointer;
+  font-size:20px;line-height:1;color:var(--ink-soft);
+}
+.intro-x:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 8%,transparent)}
+
+/* Teams controls now sit below the up-next strip, above the cards. */
+.teamctl{margin-top:26px;margin-bottom:4px}
+
 /* ---------- team filter chips ---------- */
 .filter-toggle{
   display:inline-flex;align-items:center;gap:6px;margin-top:20px;
@@ -59,6 +76,8 @@ h1{
 .team-filter{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
 .filter-toggle + .team-filter{margin-top:10px}
 .team-filter[hidden]{display:none}
+.filter-hint{margin-top:8px;font-size:12px;color:var(--ink-soft)}
+.filter-hint[hidden]{display:none}
 .chip{
   display:inline-flex;align-items:center;gap:7px;
   font-family:'Barlow',sans-serif;font-size:13px;font-weight:600;letter-spacing:.02em;
@@ -258,6 +277,7 @@ h1{
 }
 .g-tag-pre{color:var(--ink-soft)}
 .g-tag-nat{color:#6AA0FF;border-color:#2F6DF0}
+.g-tag-stream{color:#C4A0FF;border-color:#7C4DFF}
 
 /* offseason / error state */
 .team.off .team-head{background:var(--frost);color:var(--ink);border-bottom-color:var(--line)}
