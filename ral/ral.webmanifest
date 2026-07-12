@@ -1,8 +1,8 @@
 {
-  "name": "ball.town RDU",
-  "short_name": "ball.town RDU",
+  "name": "ball.town RAL",
+  "short_name": "ball.town RAL",
   "description": "Upcoming games for every Raleigh pro team.",
-  "start_url": "/rdu",
+  "start_url": "/ral",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0D141D",

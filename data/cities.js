@@ -1489,7 +1489,7 @@
     "nashville": {
       name: "Nashville",
       shortName: "Nashville",
-      abbr: "NSH",
+      abbr: "NASH",
       tz: "America/Chicago",
       tzLabel: "CT",
       teams: [
@@ -1811,7 +1811,7 @@
     "columbus": {
       name: "Columbus",
       shortName: "Columbus",
-      abbr: "CMH",
+      abbr: "CBUS",
       tz: "America/New_York",
       tzLabel: "ET",
       teams: [
@@ -2205,7 +2205,7 @@
     "raleigh": {
       name: "Raleigh",
       shortName: "Raleigh",
-      abbr: "RDU",
+      abbr: "RAL",
       tz: "America/New_York",
       tzLabel: "ET",
       teams: [

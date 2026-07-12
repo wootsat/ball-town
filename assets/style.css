@@ -42,25 +42,24 @@ h1{
   text-transform:uppercase;
   margin-top:14px;
 }
-.tagline{margin-top:10px;font-size:16px;color:var(--ink-soft);max-width:52ch}
+/* Full-width line that wraps by browser width, not a fixed char cap. */
+.tagline{margin-top:10px;font-size:16px;color:var(--ink-soft)}
 .tagline b{color:var(--ink);font-weight:600}
+.tagline[hidden]{display:none}
 
-/* index intro: full-width line (wraps by browser width, not a char cap),
-   dismissible via the × (state saved in localStorage). */
-.intro{position:relative;margin-top:10px;padding-right:30px}
-.intro .tagline{margin-top:0;max-width:none}
-.intro[hidden]{display:none}
-.intro-x{
-  position:absolute;top:-4px;right:0;
+/* Dismissible tagline: the × is injected by app.js on city pages. */
+.tagline.has-dismiss{position:relative;padding-right:30px}
+.tagline-x{
+  position:absolute;top:0;right:0;
   width:26px;height:26px;border-radius:50%;
   display:inline-flex;align-items:center;justify-content:center;
   background:none;border:0;cursor:pointer;
   font-size:20px;line-height:1;color:var(--ink-soft);
 }
-.intro-x:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.tagline-x:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 8%,transparent)}
 
 /* Teams controls now sit below the up-next strip, above the cards. */
-.teamctl{margin-top:26px;margin-bottom:4px}
+.teamctl{margin-top:16px;margin-bottom:4px}
 
 /* ---------- team filter chips ---------- */
 .filter-toggle{
@@ -177,7 +176,7 @@ h1{
 }
 
 /* ---------- up next strip ---------- */
-.upnext{margin-top:36px;margin-bottom:12px}
+.upnext{margin-top:22px;margin-bottom:12px}
 .strip-label{
   font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;
   letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);
@@ -206,7 +205,7 @@ h1{
 .next-time{font-size:13px;color:var(--ink-soft);margin-top:6px}
 
 /* ---------- team cards ---------- */
-.teams{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:44px;margin-bottom:8px}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px;margin-bottom:8px}
 .loading,.load-error{grid-column:1/-1;color:var(--ink-soft);padding:24px 0}
 .team{
   background:var(--frost);border:1px solid var(--line);border-radius:14px;
@@ -326,6 +325,11 @@ footer{
   display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
 }
 .appver{flex-basis:100%;font-size:11px;letter-spacing:.04em;opacity:.55}
+.social{flex-basis:100%;display:flex;gap:16px;margin-top:8px}
+.social a{display:inline-flex;color:var(--ink-soft);transition:color .15s}
+.social a:hover{color:var(--ink)}
+.social svg{width:20px;height:20px;display:block}
+.disclaimer{flex-basis:100%;margin-top:2px;font-size:11px;line-height:1.5;color:var(--ink-soft);opacity:.7;max-width:80ch}
 
 /* ---------- add-to-home-screen banner ---------- */
 .a2hs{

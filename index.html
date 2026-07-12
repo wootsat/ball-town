@@ -29,11 +29,7 @@
     <a class="brand" href="index.html">ball<span>.town</span></a>
   </nav>
   <h1>Pick your town</h1>
-  <div class="intro" id="intro">
-    <button type="button" class="intro-x" id="intro-x" aria-label="Dismiss">×</button>
-    <p class="tagline"><b>Every pro team in your city, one page.</b> Upcoming games across the NFL, NBA, MLB, NHL, MLS, and WNBA — live schedules, local time.</p>
-  </div>
-  <script>try{if(localStorage.getItem("balltown:intro-dismissed"))document.getElementById("intro").hidden=true;}catch(e){}</script>
+  <p class="tagline"><b>Every pro team in your city, one page.</b> Upcoming games across the NFL, NBA, MLB, NHL, MLS, and WNBA — live schedules, local time.</p>
   <input type="search" id="city-search" class="city-search" placeholder="Search a city or team…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search cities and teams">
 </header>
 
@@ -79,7 +75,7 @@
     <h2>Cleveland</h2>
     <p>Guardians · Cavaliers · Browns</p>
   </a>
-  <a class="city-card" href="/cmh" data-search="columbus columbus cmh cmh columbus blue jackets blue jackets columbus crew crew">
+  <a class="city-card" href="/cbus" data-search="columbus columbus cbus cbus columbus blue jackets blue jackets columbus crew crew">
     <h2>Columbus</h2>
     <p>Blue Jackets · Crew</p>
   </a>
@@ -143,7 +139,7 @@
     <h2>Montréal</h2>
     <p>Canadiens · CF Montréal</p>
   </a>
-  <a class="city-card" href="/nsh" data-search="nashville nashville nsh nsh tennessee titans titans nashville predators predators nashville sc nashville sc">
+  <a class="city-card" href="/nash" data-search="nashville nashville nash nash tennessee titans titans nashville predators predators nashville sc nashville sc">
     <h2>Nashville</h2>
     <p>Titans · Predators · Nashville SC</p>
   </a>
@@ -183,7 +179,7 @@
     <h2>Portland</h2>
     <p>Trail Blazers · Timbers · Fire</p>
   </a>
-  <a class="city-card" href="/rdu" data-search="raleigh raleigh rdu rdu carolina hurricanes hurricanes">
+  <a class="city-card" href="/ral" data-search="raleigh raleigh ral ral carolina hurricanes hurricanes">
     <h2>Raleigh</h2>
     <p>Hurricanes</p>
   </a>
@@ -246,20 +242,17 @@
 
 <footer class="wrap">
   <span><b>ball.town</b> · schedules via ESPN public data</span>
+  <span class="social">
+    <a href="https://www.instagram.com/ball.town" target="_blank" rel="noopener" aria-label="ball.town on Instagram"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg></a>
+    <a href="https://x.com/BallTownApp" target="_blank" rel="noopener" aria-label="ball.town on X"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg></a>
+    <a href="https://www.reddit.com/r/BallTownApp/" target="_blank" rel="noopener" aria-label="ball.town on Reddit"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-6.994 4.87-3.865 0-6.994-2.176-6.994-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg></a>
+    <a href="https://www.facebook.com/BallTownApp" target="_blank" rel="noopener" aria-label="ball.town on Facebook"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></svg></a>
+  </span>
+  <span class="disclaimer">ball.town is independently operated and is not part of ESPN or any sports league, team, broadcast network, or university</span>
 </footer>
 
 <script>
 (function () {
-  // Dismissible intro blurb (remembered locally).
-  var intro = document.getElementById("intro");
-  var introX = document.getElementById("intro-x");
-  if (intro && introX) {
-    introX.addEventListener("click", function () {
-      intro.hidden = true;
-      try { localStorage.setItem("balltown:intro-dismissed", "1"); } catch (e) {}
-    });
-  }
-
   var input = document.getElementById("city-search");
   if (!input) return;
   var cards = [].slice.call(document.querySelectorAll(".city-card"));

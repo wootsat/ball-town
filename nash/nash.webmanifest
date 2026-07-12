@@ -1,8 +1,8 @@
 {
-  "name": "ball.town NSH",
-  "short_name": "ball.town NSH",
+  "name": "ball.town NASH",
+  "short_name": "ball.town NASH",
   "description": "Upcoming games for every Nashville pro team.",
-  "start_url": "/nsh",
+  "start_url": "/nash",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0D141D",

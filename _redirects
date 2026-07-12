@@ -40,8 +40,8 @@
 /city/cleveland  /cle  301
 /city/st-louis.html  /stl  301
 /city/st-louis  /stl  301
-/city/nashville.html  /nsh  301
-/city/nashville  /nsh  301
+/city/nashville.html  /nash  301
+/city/nashville  /nash  301
 /city/san-diego.html  /sd  301
 /city/san-diego  /sd  301
 /city/baltimore.html  /bal  301
@@ -56,8 +56,8 @@
 /city/wisconsin  /wi  301
 /city/cincinnati.html  /cin  301
 /city/cincinnati  /cin  301
-/city/columbus.html  /cmh  301
-/city/columbus  /cmh  301
+/city/columbus.html  /cbus  301
+/city/columbus  /cbus  301
 /city/portland.html  /pdx  301
 /city/portland  /pdx  301
 /city/salt-lake-city.html  /slc  301
@@ -82,8 +82,8 @@
 /city/orlando  /orl  301
 /city/austin.html  /aus  301
 /city/austin  /aus  301
-/city/raleigh.html  /rdu  301
-/city/raleigh  /rdu  301
+/city/raleigh.html  /ral  301
+/city/raleigh  /ral  301
 /city/montreal.html  /mtl  301
 /city/montreal  /mtl  301
 /city/ottawa.html  /ott  301

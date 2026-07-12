@@ -12,7 +12,7 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.5";
+  const APP_VERSION = "2026-07-11.8";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /live Pages Function (edge-cached ~30s).
@@ -730,10 +730,13 @@
     filterEl.parentNode.insertBefore(btn, filterEl);
 
     // How-to hint under the chips (hidden along with them when collapsed).
+    // Wording follows the primary input: touch devices tap, others click.
+    const isTouch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
     const hint = document.createElement("p");
     hint.id = "filter-hint";
     hint.className = "filter-hint";
-    hint.textContent = "Click (Tap on mobile) to disable. Drag to re-order.";
+    hint.textContent =
+      (isTouch ? "Tap" : "Click") + " to hide. Drag to re-order.";
     filterEl.insertAdjacentElement("afterend", hint);
 
     let collapsed = false;
@@ -825,6 +828,17 @@
       (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
     const isAndroid = /Android/.test(ua);
     if (!isIOS && !isAndroid) return; // desktop: no prompt
+    // In-app browsers (Telegram, Reddit, Instagram, Facebook, X, …) are
+    // embedded webviews where "Add to Home Screen" is unavailable or
+    // broken — don't nag with an install prompt there. UA-based, so it
+    // can't be perfect for every wrapper, but it catches the common ones:
+    // Android System WebView (the `wv` token), the big social apps, and
+    // iOS WKWebViews (real Safari always keeps the "Safari/" token).
+    const inAppBrowser =
+      /\bwv\b/.test(ua) ||
+      /FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|Twitter|TikTok|musical_ly|Bytedance|Snapchat|Pinterest|LinkedInApp|Reddit|Telegram|GSA/i.test(ua) ||
+      (isIOS && !/Safari/.test(ua));
+    if (inAppBrowser) return;
     // On iOS only Safari can add to the home screen; in-app / other
     // browsers can't, so don't give them dead instructions.
     const iosCantInstall = isIOS && /CriOS|FxiOS|EdgiOS|GSA/.test(ua);
@@ -1198,9 +1212,44 @@
     foot.appendChild(v);
   }
 
+  // Dismissible tagline on city pages: inject an × and remember the choice
+  // (globally, so it stays hidden across cities). The main city-picker page
+  // doesn't load app.js, so its tagline is never dismissible.
+  const TAGLINE_KEY = "balltown:tagline-dismissed";
+  function initTaglineDismiss() {
+    const el = document.querySelector(".tagline");
+    if (!el) return;
+    let dismissed = false;
+    try {
+      dismissed = localStorage.getItem(TAGLINE_KEY) === "1";
+    } catch (e) {
+      /* private mode */
+    }
+    if (dismissed) {
+      el.hidden = true;
+      return;
+    }
+    el.classList.add("has-dismiss");
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "tagline-x";
+    x.setAttribute("aria-label", "Dismiss");
+    x.textContent = "×";
+    x.addEventListener("click", () => {
+      el.hidden = true;
+      try {
+        localStorage.setItem(TAGLINE_KEY, "1");
+      } catch (e) {
+        /* private mode */
+      }
+    });
+    el.appendChild(x);
+  }
+
   initInstallPrompt();
   initStickyHeader();
   initAutoRefresh();
   renderVersion();
+  initTaglineDismiss();
   main();
 })();
