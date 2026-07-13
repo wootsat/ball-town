@@ -15,7 +15,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "",
     icon: "/assets/icons/icon-192.png",
-    badge: "/assets/icons/icon-192.png",
+    badge: "/assets/icons/badge.png", // monochrome silhouette for the Android status bar
     tag: data.tag || undefined, // collapse duplicates with the same tag
     data: { url: data.url || "/" }
   };
