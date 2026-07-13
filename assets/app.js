@@ -12,7 +12,7 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.9";
+  const APP_VERSION = "2026-07-11.10";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /live Pages Function (edge-cached ~30s).
@@ -317,6 +317,7 @@
   function teamCard(team, events, error) {
     const head =
       '<div class="team-head">' +
+      bellHTML(team) +
       '<span class="team-ic" aria-hidden="true">' + sportIcon(team) + "</span>" +
       '<div class="team-league">' + team.leagueLabel + "</div>" +
       '<div class="team-name">' + team.name + "</div>" +
@@ -1307,80 +1308,126 @@
     return { ok: true };
   }
 
-  function initNotify() {
-    const teamsEl = document.getElementById("teams");
-    if (!teamsEl || document.getElementById("alerts")) return;
-    const supported =
-      "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  // Bell button on each team card opens a little popover with the two
+  // options for that team. NOTIFY_SUPPORTED gates whether cards show a bell.
+  const NOTIFY_SUPPORTED =
+    "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const BELL_SVG =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+    'stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M18 8.4A6 6 0 1 0 6 8.4C6 15 3 17 3 17h18s-3-2-3-8.6"/>' +
+    '<path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+  function notifyOn(id) {
+    const p = loadNotify()[id];
+    return !!(p && (p.morning || p.pre));
+  }
+  // Bell markup for a card header (empty string when notifications aren't
+  // supported). Team names have no double-quotes, so plain interpolation is ok.
+  function bellHTML(team) {
+    if (!NOTIFY_SUPPORTED) return "";
+    const id = team.sportPath + ":" + team.teamId;
+    return (
+      '<button type="button" class="bell' + (notifyOn(id) ? " on" : "") +
+      '" data-id="' + id + '" aria-label="Game alerts for ' + team.name +
+      '" title="Game alerts">' + BELL_SVG + "</button>"
+    );
+  }
 
-    const sec = document.createElement("section");
-    sec.className = "wrap alerts";
-    sec.id = "alerts";
-    sec.innerHTML =
-      '<div class="alerts-head">Game alerts</div>' +
-      '<p class="alerts-note"></p>' +
-      '<div class="alerts-list"></div>';
-    teamsEl.insertAdjacentElement("afterend", sec);
-    const note = sec.querySelector(".alerts-note");
-    const list = sec.querySelector(".alerts-list");
+  function ensureBellPanel() {
+    if (document.getElementById("bell-panel")) return;
+    const p = document.createElement("div");
+    p.id = "bell-panel";
+    p.className = "bell-panel";
+    p.hidden = true;
+    p.innerHTML =
+      '<div class="bell-title"></div>' +
+      '<label class="bell-opt"><input type="checkbox" data-kind="morning"> Morning of game day</label>' +
+      '<label class="bell-opt"><input type="checkbox" data-kind="pre"> 10 minutes before</label>' +
+      '<p class="bell-note"></p>';
+    document.body.appendChild(p);
 
-    if (!supported) {
-      note.textContent = "Your browser doesn't support notifications.";
-      return;
-    }
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const standalone =
-      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
-      window.navigator.standalone === true;
-    note.innerHTML =
-      "Get a heads-up the morning of a game day, and again about 10 minutes before kickoff." +
-      (isIOS && !standalone
-        ? ' <b>On iPhone, first add ball.town to your Home Screen</b> — notifications only work from the installed app.'
-        : "");
-
-    const prefs = loadNotify();
-    list.innerHTML = city.teams
-      .map((t) => {
-        const id = t.sportPath + ":" + t.teamId;
-        const p = prefs[id] || {};
-        return (
-          '<div class="alert-row" data-id="' + id + '">' +
-          '<span class="alert-team">' + shortTeamName(t) + "</span>" +
-          '<label class="alert-opt"><input type="checkbox" data-kind="morning"' +
-          (p.morning ? " checked" : "") + "> Morning</label>" +
-          '<label class="alert-opt"><input type="checkbox" data-kind="pre"' +
-          (p.pre ? " checked" : "") + "> 10 min before</label>" +
-          "</div>"
-        );
-      })
-      .join("");
-
-    list.addEventListener("change", async (e) => {
+    p.addEventListener("change", async (e) => {
       const box = e.target.closest('input[type="checkbox"]');
       if (!box) return;
-      const row = box.closest(".alert-row");
-      const id = row.dataset.id;
-      const team = city.teams.find((t) => t.sportPath + ":" + t.teamId === id);
+      const id = p.dataset.id;
+      const kind = box.dataset.kind === "morning" ? "morning" : "pre";
       const cur = loadNotify();
-      const p = cur[id] || { morning: false, pre: false };
-      p[box.dataset.kind === "morning" ? "morning" : "pre"] = box.checked;
-      p.short = shortTeamName(team);
-      p.code = CITY_CODE;
-      if (!p.morning && !p.pre) delete cur[id];
-      else cur[id] = p;
+      const pref = cur[id] || { morning: false, pre: false };
+      pref[kind] = box.checked;
+      pref.short = p.dataset.short || (REGISTRY[id] ? shortTeamName(REGISTRY[id].team) : id);
+      pref.code = CITY_CODE;
+      if (!pref.morning && !pref.pre) delete cur[id];
+      else cur[id] = pref;
       saveNotify(cur);
-      note.classList.remove("alerts-err");
+      const note = p.querySelector(".bell-note");
+      note.classList.remove("err");
       const res = await syncNotify().catch(() => ({ ok: false, reason: "error" }));
       if (!res.ok) {
         box.checked = false; // couldn't subscribe — revert this toggle
         const cur2 = loadNotify();
-        const p2 = cur2[id];
-        if (p2) { p2[box.dataset.kind === "morning" ? "morning" : "pre"] = false; if (!p2.morning && !p2.pre) delete cur2[id]; saveNotify(cur2); }
-        note.classList.add("alerts-err");
+        if (cur2[id]) {
+          cur2[id][kind] = false;
+          if (!cur2[id].morning && !cur2[id].pre) delete cur2[id];
+          saveNotify(cur2);
+        }
+        note.classList.add("err");
         note.textContent = res.reason === "denied"
-          ? "Notifications are blocked — enable them for ball.town in your browser settings."
+          ? "Notifications are blocked — enable them in your browser settings."
           : "Couldn't turn on notifications. On iPhone, add ball.town to your Home Screen first.";
       }
+      const bell = document.querySelector('.bell[data-id="' + id + '"]');
+      if (bell) bell.classList.toggle("on", notifyOn(id));
+    });
+
+    document.addEventListener("click", (e) => {
+      if (p.hidden) return;
+      if (p.contains(e.target) || e.target.closest(".bell")) return;
+      p.hidden = true;
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") p.hidden = true;
+    });
+  }
+
+  function openBellPanel(bell) {
+    const p = document.getElementById("bell-panel");
+    if (!p) return;
+    const id = bell.dataset.id;
+    if (!p.hidden && p.dataset.id === id) { p.hidden = true; return; } // toggle
+    const short = REGISTRY[id] ? shortTeamName(REGISTRY[id].team) : id;
+    p.dataset.id = id;
+    p.dataset.short = short;
+    p.querySelector(".bell-title").textContent = short + " alerts";
+    const pref = loadNotify()[id] || {};
+    p.querySelector('input[data-kind="morning"]').checked = !!pref.morning;
+    p.querySelector('input[data-kind="pre"]').checked = !!pref.pre;
+    const note = p.querySelector(".bell-note");
+    note.classList.remove("err");
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const standalone =
+      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      window.navigator.standalone === true;
+    note.textContent = isIOS && !standalone
+      ? "On iPhone, add ball.town to your Home Screen first." : "";
+    // anchor under the bell, right edges aligned; kept on-screen
+    p.hidden = false;
+    const r = bell.getBoundingClientRect();
+    p.style.top = r.bottom + 6 + "px";
+    p.style.left = "auto";
+    p.style.right = Math.max(8, window.innerWidth - r.right) + "px";
+  }
+
+  function initNotify() {
+    if (!NOTIFY_SUPPORTED) return;
+    ensureBellPanel();
+    const teamsEl = document.getElementById("teams");
+    if (!teamsEl || teamsEl.dataset.bellBound) return;
+    teamsEl.dataset.bellBound = "1";
+    teamsEl.addEventListener("click", (e) => {
+      const bell = e.target.closest(".bell");
+      if (!bell) return;
+      e.stopPropagation();
+      openBellPanel(bell);
     });
   }
 
