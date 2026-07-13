@@ -12,7 +12,7 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.8";
+  const APP_VERSION = "2026-07-11.9";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /live Pages Function (edge-cached ~30s).
@@ -1246,10 +1246,149 @@
     el.appendChild(x);
   }
 
+  // ---------- game-day / pre-game push notifications ----------
+  // Per-team checkboxes (Morning-of and 10-min-before). Prefs are stored
+  // globally (one push subscription per browser covers every city) and
+  // synced to the server so the cron Worker can send. Requires a service
+  // worker + notification permission; on iPhone it only works once the site
+  // is installed to the home screen (Apple limitation).
+  const VAPID_PUBLIC_KEY = "BOZEc7VQpit0jPAcZE3BXZCzhqT23wELtqJmk5f-n2djhUUkEcxf3B9IILmTmoQEM8NI12wBrFUfJeQeKw-zwdE";
+  const NOTIFY_KEY = "balltown:notify"; // global: { "<sportPath>:<teamId>": {morning,pre,short,code} }
+  const CITY_CODE = String(city.code || city.abbr || citySlug).toLowerCase();
+
+  function loadNotify() {
+    try { return JSON.parse(localStorage.getItem(NOTIFY_KEY) || "{}"); }
+    catch (e) { return {}; }
+  }
+  function saveNotify(p) {
+    try { localStorage.setItem(NOTIFY_KEY, JSON.stringify(p)); } catch (e) {}
+  }
+  function urlB64ToU8(s) {
+    const pad = "=".repeat((4 - (s.length % 4)) % 4);
+    const b = (s + pad).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(b);
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function bufToB64url(buf) {
+    const b = new Uint8Array(buf);
+    let s = "";
+    for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  // Push the current prefs (+ this browser's subscription) to the server.
+  async function syncNotify() {
+    let perm = Notification.permission;
+    if (perm === "default") perm = await Notification.requestPermission();
+    if (perm !== "granted") return { ok: false, reason: "denied" };
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+    let subscription = await reg.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToU8(VAPID_PUBLIC_KEY)
+      });
+    }
+    const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || "UTC";
+    await fetch("/push/subscribe", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        endpoint: subscription.endpoint,
+        p256dh: bufToB64url(subscription.getKey("p256dh")),
+        auth: bufToB64url(subscription.getKey("auth")),
+        tz: tz,
+        prefs: loadNotify()
+      })
+    });
+    return { ok: true };
+  }
+
+  function initNotify() {
+    const teamsEl = document.getElementById("teams");
+    if (!teamsEl || document.getElementById("alerts")) return;
+    const supported =
+      "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+
+    const sec = document.createElement("section");
+    sec.className = "wrap alerts";
+    sec.id = "alerts";
+    sec.innerHTML =
+      '<div class="alerts-head">Game alerts</div>' +
+      '<p class="alerts-note"></p>' +
+      '<div class="alerts-list"></div>';
+    teamsEl.insertAdjacentElement("afterend", sec);
+    const note = sec.querySelector(".alerts-note");
+    const list = sec.querySelector(".alerts-list");
+
+    if (!supported) {
+      note.textContent = "Your browser doesn't support notifications.";
+      return;
+    }
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const standalone =
+      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      window.navigator.standalone === true;
+    note.innerHTML =
+      "Get a heads-up the morning of a game day, and again about 10 minutes before kickoff." +
+      (isIOS && !standalone
+        ? ' <b>On iPhone, first add ball.town to your Home Screen</b> — notifications only work from the installed app.'
+        : "");
+
+    const prefs = loadNotify();
+    list.innerHTML = city.teams
+      .map((t) => {
+        const id = t.sportPath + ":" + t.teamId;
+        const p = prefs[id] || {};
+        return (
+          '<div class="alert-row" data-id="' + id + '">' +
+          '<span class="alert-team">' + shortTeamName(t) + "</span>" +
+          '<label class="alert-opt"><input type="checkbox" data-kind="morning"' +
+          (p.morning ? " checked" : "") + "> Morning</label>" +
+          '<label class="alert-opt"><input type="checkbox" data-kind="pre"' +
+          (p.pre ? " checked" : "") + "> 10 min before</label>" +
+          "</div>"
+        );
+      })
+      .join("");
+
+    list.addEventListener("change", async (e) => {
+      const box = e.target.closest('input[type="checkbox"]');
+      if (!box) return;
+      const row = box.closest(".alert-row");
+      const id = row.dataset.id;
+      const team = city.teams.find((t) => t.sportPath + ":" + t.teamId === id);
+      const cur = loadNotify();
+      const p = cur[id] || { morning: false, pre: false };
+      p[box.dataset.kind === "morning" ? "morning" : "pre"] = box.checked;
+      p.short = shortTeamName(team);
+      p.code = CITY_CODE;
+      if (!p.morning && !p.pre) delete cur[id];
+      else cur[id] = p;
+      saveNotify(cur);
+      note.classList.remove("alerts-err");
+      const res = await syncNotify().catch(() => ({ ok: false, reason: "error" }));
+      if (!res.ok) {
+        box.checked = false; // couldn't subscribe — revert this toggle
+        const cur2 = loadNotify();
+        const p2 = cur2[id];
+        if (p2) { p2[box.dataset.kind === "morning" ? "morning" : "pre"] = false; if (!p2.morning && !p2.pre) delete cur2[id]; saveNotify(cur2); }
+        note.classList.add("alerts-err");
+        note.textContent = res.reason === "denied"
+          ? "Notifications are blocked — enable them for ball.town in your browser settings."
+          : "Couldn't turn on notifications. On iPhone, add ball.town to your Home Screen first.";
+      }
+    });
+  }
+
   initInstallPrompt();
   initStickyHeader();
   initAutoRefresh();
   renderVersion();
   initTaglineDismiss();
+  initNotify();
   main();
 })();

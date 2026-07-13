@@ -1,0 +1,23 @@
+name = "balltown-notify"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+# Cron-only worker — it has no HTTP endpoint, so don't publish a workers.dev URL.
+workers_dev = false
+
+# Runs the sender every 5 minutes (free plan allows cron triggers).
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Same D1 database the subscribe Pages Function writes to. Fill in the id
+# printed by `wrangler d1 create balltown-notify`.
+[[d1_databases]]
+binding = "DB"
+database_name = "balltown-notify"
+database_id = "3e4f9d67-bc3f-4a40-ae2f-cacff5ee3390"
+
+# Public, non-secret values. The VAPID PUBLIC key here must match the one in
+# assets/app.js (VAPID_PUBLIC_KEY). Set the PRIVATE key as a secret instead:
+#   wrangler secret put VAPID_PRIVATE_KEY
+[vars]
+VAPID_SUBJECT = "mailto:cooper.michaelcs@gmail.com"
+VAPID_PUBLIC_KEY = "BOZEc7VQpit0jPAcZE3BXZCzhqT23wELtqJmk5f-n2djhUUkEcxf3B9IILmTmoQEM8NI12wBrFUfJeQeKw-zwdE"
