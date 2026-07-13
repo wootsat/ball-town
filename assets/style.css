@@ -241,6 +241,10 @@ h1{
 .g-opp .vs{color:var(--ink-soft);font-weight:400;margin-right:4px}
 .g-time{font-size:14px;color:var(--ink-soft);white-space:nowrap}
 .g-tv{display:block;font-size:12px;color:var(--ink-soft);margin-top:1px}
+/* OTA network names linked to Puffer */
+.tv-link{color:var(--ink);text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.tv-link:hover{color:#6AA0FF}
+.tv-ext{width:11px;height:11px;margin-left:2px;vertical-align:-1px;display:inline-block}
 
 /* ---------- live game state (in-progress score + clock) ---------- */
 .live-dot{

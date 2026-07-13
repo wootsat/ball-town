@@ -12,7 +12,7 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.10";
+  const APP_VERSION = "2026-07-11.11";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /live Pages Function (edge-cached ~30s).
@@ -244,6 +244,55 @@
     return SPORT_ICONS[team.sportPath.split("/")[0]] || "";
   }
 
+  // ---------- TV network -> Puffer link ----------
+  // Puffer (Stanford) restreams the over-the-air networks (ABC/CBS/NBC/FOX),
+  // so we link those channel names to it — with these carve-outs:
+  //  - never on Safari/iOS/iPad (Puffer's player needs Chromium/Firefox);
+  //  - NFL FOX/CBS regular/pre-season games are REGIONAL (national=false), and
+  //    Puffer only carries the Bay Area feed, so only link them for Bay Area
+  //    teams. (NFL playoffs on FOX/CBS are national -> linked like anything.)
+  const PUFFER_URL = "https://puffer.stanford.edu/";
+  const NO_PUFFER_LINKS = (function () {
+    const ua = navigator.userAgent || "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+      (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1); // iPadOS
+    const isSafari = /Safari/.test(ua) &&
+      !/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|OPT|Android|SamsungBrowser/.test(ua);
+    return isIOS || isSafari;
+  })();
+  const BAY_AREA_TEAM_IDS = (function () {
+    const set = {};
+    const bay = window.BALLTOWN.cities["bay-area"];
+    if (bay) bay.teams.forEach((t) => (set[t.sportPath + ":" + t.teamId] = true));
+    return set;
+  })();
+  // "Opens in new window": a box with an arrow pointing diagonally up-right.
+  const EXT_ICON =
+    '<svg class="tv-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>' +
+    '<path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>';
+
+  function pufferLinkable(name, ev, team) {
+    if (NO_PUFFER_LINKS) return false;
+    if (!/^(?:ABC|CBS|NBC|FOX)$/i.test(name)) return false; // exact OTA network
+    const isNFL = team.sportPath === "football/nfl";
+    if (isNFL && /^(?:FOX|CBS)$/i.test(name) && !ev.national) {
+      return !!BAY_AREA_TEAM_IDS[team.sportPath + ":" + team.teamId];
+    }
+    return true;
+  }
+  function channelsHTML(ev, team) {
+    return (ev.channels || [])
+      .map((name) =>
+        pufferLinkable(name, ev, team)
+          ? '<a class="tv-link" href="' + PUFFER_URL +
+            '" target="_blank" rel="noopener">' + name + EXT_ICON + "</a>"
+          : name
+      )
+      .join(", ");
+  }
+
   function gameRow(ev, team) {
     const live = ev.live;
     const isLive = !!(live && live.state === "in");
@@ -288,7 +337,7 @@
         : "") +
       result +
       (extras && ev.channels && ev.channels.length
-        ? '<span class="g-tv">' + ev.channels.join(", ") + "</span>"
+        ? '<span class="g-tv">' + channelsHTML(ev, team) + "</span>"
         : "") +
       "</span>" +
       lastCell +
@@ -380,7 +429,7 @@
       '<div class="next-opp">' + (item.ev.home ? "vs " : "at ") + item.ev.opponent +
       (item.ev.home ? " · home" : "") + "</div>" +
       (!isFinal && item.ev.channels && item.ev.channels.length
-        ? '<div class="next-tv">' + item.ev.channels.join(", ") + "</div>"
+        ? '<div class="next-tv">' + channelsHTML(item.ev, item.team) + "</div>"
         : "") +
       bottomCell +
       "</div>"
