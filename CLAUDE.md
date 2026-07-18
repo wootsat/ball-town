@@ -63,15 +63,30 @@ statically (Cloudflare Pages, domain ball.town).
 - `functions/scores.js` — Cloudflare Pages Function served at `/scores`
   (was `/live` — renamed so the `/live` URL can serve the Live Now page).
   Polls ESPN scoreboards for **in-progress and finished** games, returns
-  `{games:{"<sportPath>:<teamId>":{...state}}, live:[{sport,home,away,homeScore,awayScore,status,homeColor}]}`
+  `{games:{"<sportPath>:<teamId>":{...state}}, live:[{sport,home,away,homeScore,awayScore,status,homeColor,channels}]}`
   — `games` (both sides, `state` = `"in"`|`"final"`) is what city pages
   poll; `live` (one entry per in-progress game) feeds the Live Now page +
-  home-page indicator. Edge-cached 30s via the Cache API. No Worker/KV/cron.
+  home-page indicator. `channels` is the flat, deduped list of every
+  broadcast name on the game (`comp.broadcasts[].names`, `channelsOf`).
+  Edge-cached 30s via the Cache API. No Worker/KV/cron.
 - `live/index.html` — the **Live Now** page at `ball.town/live`
   (`assets/live.js` renders an Up-Next-style tile per in-progress game from
-  `/scores`, refreshes 30s). `index.html` has a "See all live games" tile
-  (`#live-all`) beside the search that turns red (`--live`) when `/scores`
-  reports any live game, else stays muted gray.
+  `/scores`, **grouped under per-sport headers** — `SPORT_ORDER` fixes the
+  order, a sport with no live games is omitted — each tile showing its
+  `channels`; refreshes 30s). Both teams render **identically** (white,
+  same size, `.live-grid .next-team`) with a small muted "at" connector —
+  no home/away favoritism in the text (the tile still tints its accent bar
+  + icon with the home team's color via `--tc`). Every page **except** Live Now carries a
+  "See all live games" pill (`#live-all`) in the **topbar upper-right**
+  (it replaced the old `← All cities` crumb — the `ball.town` brand still
+  links home). It links to `/live` and turns red (`--live`) when `/scores`
+  reports any live game, else stays muted gray. On city pages the toggle
+  piggybacks on app.js's existing `/scores` poll (no extra request);
+  `index.html` has a small inline poller since it doesn't load app.js.
+  Live Now instead has a `← Back` crumb (`#back-link`, live.js): if the
+  referrer is same-origin it `history.back()`s to wherever you came from
+  (city page or home); on a direct hit it falls through to its
+  `../index.html` href.
 - Live/score integration (`startLive` in app.js, `LIVE_URL="../scores"`).
   The 30s poll stores
   the raw `/scores` entry per team (only on a **successful** fetch — a

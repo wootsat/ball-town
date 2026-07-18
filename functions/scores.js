@@ -3,7 +3,7 @@
 //   games : { "<sportPath>:<teamId>": {date,home,opponent,us,them,status,state} }
 //           — both sides of every in-progress/finished game; what the city
 //             pages poll to overlay live/final scores.
-//   live  : [ {sport,home,away,homeScore,awayScore,status,homeColor} ]
+//   live  : [ {sport,home,away,homeScore,awayScore,status,homeColor,channels} ]
 //           — one entry per IN-PROGRESS game, for the /live "Live Now" page
 //             and the home-page "see all live games" indicator.
 // (Was /live; renamed so the /live URL can serve the Live Now page.)
@@ -41,6 +41,18 @@ function liveStatus(lg, status) {
     return clock && clock !== "0.0" ? q + " " + clock : q;
   }
   return sd;
+}
+
+// Flat, deduped list of every broadcast name on a game
+// (comp.broadcasts = [{market, names:[...]}, ...]).
+function channelsOf(comp) {
+  const out = [];
+  (comp.broadcasts || []).forEach((b) => {
+    (b.names || []).forEach((n) => {
+      if (n && out.indexOf(n) === -1) out.push(n);
+    });
+  });
+  return out;
 }
 
 async function buildLive() {
@@ -98,7 +110,8 @@ async function buildLive() {
               awayScore: Number(away.score),
               homeScore: Number(home.score),
               status: status,
-              homeColor: home.team && home.team.color ? "#" + home.team.color : null
+              homeColor: home.team && home.team.color ? "#" + home.team.color : null,
+              channels: channelsOf(comp)
             });
           }
         }

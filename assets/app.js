@@ -12,7 +12,7 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.16";
+  const APP_VERSION = "2026-07-11.17";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /scores Pages Function (edge-cached ~30s).
@@ -1187,8 +1187,12 @@
       try {
         const data = await (await fetch(LIVE_URL, { cache: "no-cache" })).json();
         games = (data && data.games) || {};
+        // Toggle the topbar "See all live games" pill (red when any game
+        // is live anywhere) off the same fetch — no extra request.
+        const la = document.getElementById("live-all");
+        if (la) la.classList.toggle("has-live", !!(data && data.live && data.live.length));
       } catch (e) {
-        games = null; // /live unreachable this cycle — keep state as-is
+        games = null; // /scores unreachable this cycle — keep state as-is
       }
       // Store the raw entry per team, only on a successful fetch.
       if (games) {
