@@ -12,11 +12,11 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.15";
+  const APP_VERSION = "2026-07-11.16";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
-  // In-progress scores from the /live Pages Function (edge-cached ~30s).
-  const LIVE_URL = "../live";
+  // In-progress scores from the /scores Pages Function (edge-cached ~30s).
+  const LIVE_URL = "../scores";
   const LIVE_POLL_MS = 30000;
 
   const citySlug = document.body.dataset.city;

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ball.town · every town's games, one page each</title>
 <meta name="description" content="Live scores and upcoming schedules for every pro team in your city — NFL, NBA, MLB, NHL, MLS and WNBA, one page per metro, in your local time.">
 <link rel="canonical" href="https://ball.town/">
@@ -30,7 +30,10 @@
   </nav>
   <h1>Pick your town</h1>
   <p class="tagline"><b>Every pro team in your city, one page.</b> Upcoming games across the NFL, NBA, MLB, NHL, MLS, and WNBA — live schedules, local time.</p>
-  <input type="search" id="city-search" class="city-search" placeholder="Search a city or team…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search cities and teams">
+  <div class="search-row">
+    <input type="search" id="city-search" class="city-search" placeholder="Search a city or team…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Search cities and teams">
+    <a class="live-all" id="live-all" href="/live">See all live games</a>
+  </div>
 </header>
 
 <main class="wrap city-grid">
@@ -268,6 +271,22 @@
     if (empty) empty.hidden = shown !== 0;
   }
   input.addEventListener("input", filter);
+})();
+
+// "See all live games" tile: red when any game is live, dark gray otherwise.
+(function () {
+  var el = document.getElementById("live-all");
+  if (!el) return;
+  function refresh() {
+    fetch("/scores", { cache: "no-cache" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        el.classList.toggle("has-live", !!(d && d.live && d.live.length));
+      })
+      .catch(function () { /* leave as-is */ });
+  }
+  refresh();
+  setInterval(refresh, 30000);
 })();
 </script>
 

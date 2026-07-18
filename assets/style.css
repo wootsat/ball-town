@@ -127,7 +127,8 @@ h1{
   border-radius:14px;padding:10px;
 }
 .team-add-input{
-  width:100%;font-family:'Barlow',sans-serif;font-size:14px;color:var(--ink);
+  /* 16px keeps iOS from auto-zooming the page when this input is focused */
+  width:100%;font-family:'Barlow',sans-serif;font-size:16px;color:var(--ink);
   background:var(--ice);border:1px solid var(--line);border-radius:9px;
   padding:9px 12px;outline:none;
 }
@@ -300,6 +301,8 @@ h1{
 }
 
 /* ---------- index (city list) ---------- */
+.search-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:22px}
+.search-row .city-search{margin-top:0}
 .city-search{
   display:block;width:100%;max-width:440px;margin-top:22px;
   font-family:'Barlow',sans-serif;font-size:16px;font-weight:500;color:var(--ink);
@@ -308,6 +311,21 @@ h1{
 }
 .city-search::placeholder{color:var(--ink-soft);font-weight:400}
 .city-search:focus{outline:none;border-color:var(--ink-soft)}
+/* "See all live games" tile — red when any game is live, dark gray otherwise */
+.live-all{
+  flex:0 0 auto;white-space:nowrap;text-decoration:none;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);
+  border:1px solid var(--line);border-radius:11px;padding:11px 16px;
+  transition:color .15s,border-color .15s;
+}
+.live-all:hover{border-color:var(--ink-soft)}
+.live-all.has-live{color:var(--live);border-color:color-mix(in srgb,var(--live) 45%,var(--line))}
+
+/* ---------- Live Now page (/live) ---------- */
+.live-main{margin-bottom:16px}
+.live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:24px}
+.live-empty{color:var(--ink-soft);font-size:15px;margin-top:24px}
 .search-empty{color:var(--ink-soft);font-size:15px;margin:28px 0}
 .city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin-top:28px;margin-bottom:36px}
 .city-card{animation:cardin .22s ease both}

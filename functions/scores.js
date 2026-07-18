@@ -1,9 +1,12 @@
-// Cloudflare Pages Function → served at /live.
-// Polls ESPN's per-league scoreboards, returns a compact map of the
-// IN-PROGRESS games keyed by "<sportPath>:<teamId>" (both sides), and
-// edge-caches the response for 30s. So ESPN is hit at most ~once per
-// 30s per edge location no matter how many visitors poll — the browser
-// reads this one cached endpoint, never ESPN directly.
+// Cloudflare Pages Function → served at /scores.
+// Polls ESPN's per-league scoreboards and returns, edge-cached 30s:
+//   games : { "<sportPath>:<teamId>": {date,home,opponent,us,them,status,state} }
+//           — both sides of every in-progress/finished game; what the city
+//             pages poll to overlay live/final scores.
+//   live  : [ {sport,home,away,homeScore,awayScore,status,homeColor} ]
+//           — one entry per IN-PROGRESS game, for the /live "Live Now" page
+//             and the home-page "see all live games" indicator.
+// (Was /live; renamed so the /live URL can serve the Live Now page.)
 
 const BASE = "https://site.api.espn.com/apis/site/v2/sports";
 const LEAGUES = [
@@ -42,6 +45,7 @@ function liveStatus(lg, status) {
 
 async function buildLive() {
   const games = {};
+  const live = [];
   await Promise.all(LEAGUES.map(async (lg) => {
     try {
       const res = await fetch(BASE + "/" + lg + "/scoreboard");
@@ -79,15 +83,35 @@ async function buildLive() {
             state: final ? "final" : "in"
           };
         });
+        // one deduped entry per in-progress game for the Live Now page
+        if (!final) {
+          const home = cs.find((c) => c.homeAway === "home");
+          const away = cs.find((c) => c.homeAway === "away");
+          if (home && away) {
+            const parts = (ev.name || "").split(" at "); // [away, home]
+            const nameOf = (comp0, fallback) =>
+              (comp0.team && (comp0.team.displayName || comp0.team.shortDisplayName)) || fallback || "";
+            live.push({
+              sport: lg.split("/")[0],
+              away: nameOf(away, parts[0]),
+              home: nameOf(home, parts[1]),
+              awayScore: Number(away.score),
+              homeScore: Number(home.score),
+              status: status,
+              homeColor: home.team && home.team.color ? "#" + home.team.color : null
+            });
+          }
+        }
       });
     } catch (e) { /* skip this league on error */ }
   }));
-  return { generated: new Date().toISOString(), games: games };
+  live.sort((a, b) => a.sport.localeCompare(b.sport) || a.home.localeCompare(b.home));
+  return { generated: new Date().toISOString(), games: games, live: live };
 }
 
 export async function onRequest(context) {
   const cache = caches.default;
-  const cacheKey = new Request(new URL("/__live", context.request.url).toString());
+  const cacheKey = new Request(new URL("/__scores", context.request.url).toString());
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
 

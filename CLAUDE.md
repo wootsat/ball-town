@@ -34,7 +34,7 @@ statically (Cloudflare Pages, domain ball.town).
   `ball.town/<code>` (e.g. `/mn`). `data-city` on `<body>` is the config
   **key/slug** (e.g. `minneapolis`) — that's what app.js looks up in
   `window.BALLTOWN`; the URL `<code>` is separate. Pages sit one level
-  deep (`/<code>/`), so the template's `../assets`, `../data`, `../live`
+  deep (`/<code>/`), so the template's `../assets`, `../data`, `../scores`
   paths resolve to root exactly as the old `city/<slug>.html` did — app.js
   needed no change. Manifest uses **absolute** paths (`/assets/…`,
   `start_url:/<code>`, `scope:/`).
@@ -60,17 +60,25 @@ statically (Cloudflare Pages, domain ball.town).
   meta (description, canonical, Open Graph, Twitter card) filled from
   config; `index.html`'s are static in its `<head>`. Canonical origin
   is hardcoded `https://ball.town` in build.mjs (`SITE`).
-- `functions/live.js` — Cloudflare Pages Function served at `/live`.
+- `functions/scores.js` — Cloudflare Pages Function served at `/scores`
+  (was `/live` — renamed so the `/live` URL can serve the Live Now page).
   Polls ESPN scoreboards for **in-progress and finished** games, returns
-  `{games:{"<sportPath>:<teamId>":{date,home,opponent,us,them,status,state}}}`
-  (`state` = `"in"` | `"final"`; both sides of each game), edge-cached
-  30s via the Cache API. Auto-deploys with the repo — no Worker/KV/cron.
-- Live/score integration (`startLive` in app.js). The 30s poll stores
-  the raw `/live` entry per team (only on a **successful** fetch — a
+  `{games:{"<sportPath>:<teamId>":{...state}}, live:[{sport,home,away,homeScore,awayScore,status,homeColor}]}`
+  — `games` (both sides, `state` = `"in"`|`"final"`) is what city pages
+  poll; `live` (one entry per in-progress game) feeds the Live Now page +
+  home-page indicator. Edge-cached 30s via the Cache API. No Worker/KV/cron.
+- `live/index.html` — the **Live Now** page at `ball.town/live`
+  (`assets/live.js` renders an Up-Next-style tile per in-progress game from
+  `/scores`, refreshes 30s). `index.html` has a "See all live games" tile
+  (`#live-all`) beside the search that turns red (`--live`) when `/scores`
+  reports any live game, else stays muted gray.
+- Live/score integration (`startLive` in app.js, `LIVE_URL="../scores"`).
+  The 30s poll stores
+  the raw `/scores` entry per team (only on a **successful** fetch — a
   transient failure leaves state as-is, no stale-LIVE flicker).
   `displayEvents` overlays the live/final entry onto the matching
   scheduled game (or, if a final was refetched away, synthesizes a
-  **standalone row** from the `/live` `date`/`opponent` so the date is
+  **standalone row** from the `/scores` `date`/`opponent` so the date is
   correct — not borrowed from the next game). Live games appear in
   **both** the team-card row and the up-next strip.
   - **Score ticks update in place.** The score/status elements carry
@@ -108,9 +116,11 @@ Nothing runs on the host — Cloudflare Pages just serves committed files.
 python -m http.server 8000
 # open http://localhost:8000/mn   (short code; python 301s /mn -> /mn/)
 ```
-Note: `_redirects` and the `/live` Function are Cloudflare-only, so on
-localhost the old `/city/...` paths won't redirect and `/live` 404s (the
-30s poll failing is expected offline).
+Note: `_redirects` and the `/scores` Function are Cloudflare-only, so on
+localhost the old `/city/...` paths won't redirect and `/scores` 404s (the
+30s poll failing, and the Live Now page / home indicator showing nothing,
+are all expected offline). The `/live` **page** itself is static and does
+serve locally.
 
 There are no tests. Verify by loading the page: the network tab should
 show **one** request to `data/schedules.json` and **zero** to espn.com.

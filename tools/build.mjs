@@ -168,8 +168,8 @@ if (!re.test(index)) {
 index = index.replace(re, block);
 writeFileSync(indexPath, index);
 
-// sitemap.xml — home page + every city's short URL.
-const urls = [SITE + "/"].concat(
+// sitemap.xml — home page, the Live Now page, + every city's short URL.
+const urls = [SITE + "/", SITE + "/live"].concat(
   Object.entries(cities).map(([slug, city]) => SITE + "/" + codeOf(slug, city))
 );
 const sitemap =
