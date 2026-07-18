@@ -205,7 +205,7 @@ h1{
 .next-time{font-size:13px;color:var(--ink-soft);margin-top:6px}
 
 /* ---------- team cards ---------- */
-.teams{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px;margin-bottom:8px}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px;margin-bottom:36px}
 .loading,.load-error{grid-column:1/-1;color:var(--ink-soft);padding:24px 0}
 .team{
   background:var(--frost);border:1px solid var(--line);border-radius:14px;
@@ -254,6 +254,7 @@ h1{
 }
 @keyframes livepulse{0%,100%{opacity:1}50%{opacity:.25}}
 .game.live .g-date{color:var(--live);font-weight:700;letter-spacing:.04em}
+.game.soon .g-date{color:var(--live);font-weight:700;letter-spacing:.04em}
 .game.final .g-date{color:var(--ink);font-weight:700;letter-spacing:.04em}
 .g-score{
   margin-left:8px;font-weight:700;font-variant-numeric:tabular-nums;
@@ -265,6 +266,7 @@ h1{
 .g-loss{color:#FF5A5F}
 .g-tie{color:var(--ink-soft)}
 .next-card.live .next-when{color:var(--live);font-weight:700}
+.next-card.soon .next-when{color:var(--live);font-weight:700}
 .next-card.final .next-when{color:var(--ink);font-weight:700}
 .next-score{margin-top:6px;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
 .next-status{color:var(--live);font-weight:700;margin-left:4px}

@@ -12,7 +12,7 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.11";
+  const APP_VERSION = "2026-07-11.15";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /live Pages Function (edge-cached ~30s).
@@ -244,6 +244,20 @@
     return SPORT_ICONS[team.sportPath.split("/")[0]] || "";
   }
 
+  // "Starts soon" = the 13 minutes before a scheduled start (and it isn't
+  // live/final yet). Time-based, so the /live poll's state signature includes
+  // it (below) to re-render when a game crosses the threshold.
+  const SOON_MS = 13 * 60000;
+  function isSoonDate(d) {
+    const ms = d.getTime() - Date.now();
+    return ms > 0 && ms <= SOON_MS;
+  }
+  // Whether a display event is currently live or in the "starts soon" window.
+  function liveOrSoon(ev) {
+    return !!(ev.live && ev.live.state === "in") ||
+      (!(ev.live && ev.live.state === "final") && isSoonDate(ev.date));
+  }
+
   // ---------- TV network -> Puffer link ----------
   // Puffer (Stanford) restreams the over-the-air networks (ABC/CBS/NBC/FOX),
   // so we link those channel names to it — with these carve-outs:
@@ -275,6 +289,7 @@
 
   function pufferLinkable(name, ev, team) {
     if (NO_PUFFER_LINKS) return false;
+    if (!liveOrSoon(ev)) return false; // only link once the game is live or about to start
     if (!/^(?:ABC|CBS|NBC|FOX)$/i.test(name)) return false; // exact OTA network
     const isNFL = team.sportPath === "football/nfl";
     if (isNFL && /^(?:FOX|CBS)$/i.test(name) && !ev.national) {
@@ -297,6 +312,7 @@
     const live = ev.live;
     const isLive = !!(live && live.state === "in");
     const isFinal = !!(live && live.state === "final");
+    const isSoon = !isLive && !isFinal && isSoonDate(ev.date);
     const lkey = team.sportPath + ":" + team.teamId; // for in-place score updates
     let dateCell, lastCell;
     if (isLive) {
@@ -306,6 +322,9 @@
       dateCell = '<span class="g-date">Final</span>';
       // Put the date back where the start time was ("Today" / "Sat, Jul 4").
       lastCell = '<span class="g-time">' + dayLabel(ev.date) + "</span>";
+    } else if (isSoon) {
+      dateCell = '<span class="g-date"><span class="live-dot"></span>Starts soon</span>';
+      lastCell = '<span class="g-time">' + fmtTime.format(ev.date) + "</span>";
     } else {
       dateCell = '<span class="g-date">' + dayLabel(ev.date) + "</span>";
       lastCell = '<span class="g-time">' + fmtTime.format(ev.date) + "</span>";
@@ -323,19 +342,20 @@
       result = '<span class="g-result ' + r[1] + '">' + r[0] + "</span>";
     }
     return (
-      '<li class="game' + (isLive ? " live" : "") + (isFinal ? " final" : "") + '">' +
+      '<li class="game' + (isLive ? " live" : "") + (isFinal ? " final" : "") + (isSoon ? " soon" : "") + '">' +
       dateCell +
       '<span class="g-opp"><span class="vs">' + (ev.home ? "vs" : "at") + "</span>" +
       ev.opponent +
-      (ev.home ? '<span class="home-tag">Home</span>' : "") +
-      (extras && ev.label ? '<span class="g-tag g-tag-pre">' + ev.label + "</span>" : "") +
-      (extras && ev.national ? '<span class="g-tag g-tag-nat">Nat\'l TV</span>' : "") +
-      (extras && ev.natStream ? '<span class="g-tag g-tag-stream">Nat\'l Stream</span>' : "") +
+      // score + W/L go first, right after the opponent name
       (isLive || isFinal
         ? '<span class="g-score"' + (isLive ? ' data-lscore="' + lkey + '"' : "") + ">" +
           live.us + "–" + live.them + "</span>"
         : "") +
       result +
+      (ev.home ? '<span class="home-tag">Home</span>' : "") +
+      (extras && ev.label ? '<span class="g-tag g-tag-pre">' + ev.label + "</span>" : "") +
+      (extras && ev.national ? '<span class="g-tag g-tag-nat">Nat\'l TV</span>' : "") +
+      (extras && ev.natStream ? '<span class="g-tag g-tag-stream">Nat\'l Stream</span>' : "") +
       (extras && ev.channels && ev.channels.length
         ? '<span class="g-tv">' + channelsHTML(ev, team) + "</span>"
         : "") +
@@ -400,11 +420,14 @@
     const live = item.ev.live;
     const isLive = !!(live && live.state === "in");
     const isFinal = !!(live && live.state === "final");
+    const isSoon = !isLive && !isFinal && isSoonDate(item.ev.date);
     const lkey = item.team.sportPath + ":" + item.team.teamId;
     const topCell = isLive
       ? '<div class="next-when"><span class="live-dot"></span>LIVE</div>'
       : isFinal
       ? '<div class="next-when">Final</div>'
+      : isSoon
+      ? '<div class="next-when"><span class="live-dot"></span>Starts soon</div>'
       : '<div class="next-when">' + dayLabel(item.ev.date) + "</div>";
     let result = "";
     if (isFinal) {
@@ -422,7 +445,7 @@
         localTzLabel(item.ev.date) + "</div>";
     return (
       '<div class="next-card' + (isLive ? " live" : "") + (isFinal ? " final" : "") +
-      '" style="--tc:' + item.team.colors[0] + '">' +
+      (isSoon ? " soon" : "") + '" style="--tc:' + item.team.colors[0] + '">' +
       '<span class="next-ic" aria-hidden="true">' + sportIcon(item.team) + "</span>" +
       topCell +
       '<div class="next-team">' + shortTeamName(item.team) + "</div>" +
@@ -898,10 +921,6 @@
     // gets manual instructions instead of a one-tap button.
     const isAndroidFirefox = isAndroid && /Firefox|FxiOS|Fennec/i.test(ua);
 
-    const appName =
-      (document.querySelector('meta[name="apple-mobile-web-app-title"]') || {})
-        .content || "this page";
-
     const shareGlyph =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
       'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
@@ -909,11 +928,11 @@
       '<path d="M6 12H5a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2h-1"/></svg>';
     // iOS Safari toolbar "More" button: a circle with three dots.
     const moreGlyph =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6">' +
       '<circle cx="12" cy="12" r="9"/>' +
-      '<circle cx="8" cy="12" r="1.15" fill="currentColor" stroke="none"/>' +
-      '<circle cx="12" cy="12" r="1.15" fill="currentColor" stroke="none"/>' +
-      '<circle cx="16" cy="12" r="1.15" fill="currentColor" stroke="none"/></svg>';
+      '<circle cx="8" cy="12" r="1.5" fill="currentColor" stroke="none"/>' +
+      '<circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>' +
+      '<circle cx="16" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>';
     // "Add to Home Screen" row icon: a plus in a rounded square.
     const plusSquareGlyph =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
@@ -967,20 +986,20 @@
       if (kind === "android") {
         // Chromium: one-tap install via the captured event.
         body =
-          '<div class="a2hs-text"><b>' + appName + "</b>" +
+          '<div class="a2hs-text"><b>Install ball.town as an app</b>' +
           "<span>Add it to your home screen for one-tap access.</span></div>" +
           '<button type="button" class="a2hs-add">Install</button>';
       } else if (kind === "firefox") {
         // Firefox Android: overflow menu -> More -> Add app to Home screen.
         body =
-          '<div class="a2hs-text"><b>' + appName + "</b>" +
+          '<div class="a2hs-text"><b>Install ball.town as an app</b>' +
           "<span>Tap " + ic(vDotsGlyph) + " then " + ic(hDotsGlyph) +
           " <b>More</b> then " + ic(calendarGlyph) +
           " <b>Add app to Home screen</b></span></div>";
       } else {
         // iOS Safari: manual via the More / Share sheet.
         body =
-          '<div class="a2hs-text"><b>' + appName + "</b>" +
+          '<div class="a2hs-text"><b>Install ball.town as an app</b>' +
           "<span>Tap " + ic(moreGlyph) + " then " + ic(shareGlyph) +
           " <b>Share</b> then " + ic(plusSquareGlyph) +
           " <b>Add to Home Screen</b></span></div>";
@@ -1188,7 +1207,10 @@
       const sig = results
         .map((r) => {
           const e = r.liveEntry;
-          return e ? e.state + (isPastDay(new Date(e.date)) ? "p" : "a") : "-";
+          const s = e ? e.state + (isPastDay(new Date(e.date)) ? "p" : "a") : "-";
+          // include "soon" so crossing the 13-min threshold forces a re-render
+          const soon = (r.events || []).some((g) => isSoonDate(g.date)) ? "s" : "";
+          return s + soon;
         })
         .join("|");
       if (sig !== lastStateSig || dayRolled) {
@@ -1391,7 +1413,7 @@
     p.innerHTML =
       '<div class="bell-title"></div>' +
       '<label class="bell-opt"><input type="checkbox" data-kind="morning"> Morning of game day</label>' +
-      '<label class="bell-opt"><input type="checkbox" data-kind="pre"> 10 minutes before</label>' +
+      '<label class="bell-opt"><input type="checkbox" data-kind="pre"> 10 minutes before start</label>' +
       '<p class="bell-note"></p>';
     document.body.appendChild(p);
 
