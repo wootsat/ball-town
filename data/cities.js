@@ -102,6 +102,16 @@
           match: "Minnesota Wild",
           venue: "Xcel Energy Center, St. Paul",
           colors: ["#154734", "#DDCBA4"]
+        },
+        {
+          key: "frost",
+          name: "Minnesota Frost",
+          short: "Frost",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "2",
+          venue: "Grand Casino Arena, St. Paul",
+          colors: ["#250E62", "#A77BCA"]
         }
       ]
     },
@@ -377,6 +387,16 @@
           match: "New York Liberty",
           venue: "New York",
           colors: ["#86CEBC", "#000000"]
+        },
+        {
+          key: "sirens",
+          name: "New York Sirens",
+          short: "Sirens",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "4",
+          venue: "Prudential Center, Newark",
+          colors: ["#00BFB3", "#041E42"]
         }
       ]
     },
@@ -877,6 +897,16 @@
           match: "Golden State Valkyries",
           venue: "Golden State",
           colors: ["#B38FCF", "#000000"]
+        },
+        {
+          key: "pwhl",
+          name: "PWHL San Jose",
+          short: "PWHL",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "13",
+          venue: "San Jose, CA",
+          colors: ["#F69245", "#0774CE"]
         }
       ]
     },
@@ -942,6 +972,16 @@
           match: "New England Revolution",
           venue: "New England Revolution",
           colors: ["#022166", "#CE0E2D"]
+        },
+        {
+          key: "fleet",
+          name: "Boston Fleet",
+          short: "Fleet",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "1",
+          venue: "Tsongas Center, Lowell",
+          colors: ["#173F35", "#B5E3D8"]
         }
       ]
     },
@@ -1180,6 +1220,16 @@
           match: "Detroit Red Wings",
           venue: "Little Caesars Arena, Detroit",
           colors: ["#E30526", "#FFFFFF"]
+        },
+        {
+          key: "pwhl",
+          name: "PWHL Detroit",
+          short: "PWHL",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "10",
+          venue: "Detroit, MI",
+          colors: ["#C02B2D", "#000000"]
         }
       ]
     },
@@ -1245,6 +1295,16 @@
           match: "Seattle Storm",
           venue: "Seattle",
           colors: ["#2C5235", "#FEE11A"]
+        },
+        {
+          key: "torrent",
+          name: "Seattle Torrent",
+          short: "Torrent",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "8",
+          venue: "Climate Pledge Arena, Seattle",
+          colors: ["#0C5256", "#E1DBC9"]
         }
       ]
     },
@@ -1310,6 +1370,16 @@
           match: "Toronto Tempo",
           venue: "Toronto",
           colors: ["#33476D", "#7B1B38"]
+        },
+        {
+          key: "sceptres",
+          name: "Toronto Sceptres",
+          short: "Sceptres",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "6",
+          venue: "Coca-Cola Coliseum, Toronto",
+          colors: ["#0067B9", "#0C2340"]
         }
       ]
     },
@@ -1965,6 +2035,16 @@
           match: "Las Vegas Aces",
           venue: "Las Vegas",
           colors: ["#A7A8AA", "#000000"]
+        },
+        {
+          key: "pwhl",
+          name: "PWHL Las Vegas",
+          short: "PWHL",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "12",
+          venue: "Las Vegas, NV",
+          colors: ["#717237", "#FAAC2E"]
         }
       ]
     },
@@ -2251,6 +2331,16 @@
           match: "CF Montréal",
           venue: "CF Montréal",
           colors: ["#003DA6", "#C1C5C8"]
+        },
+        {
+          key: "victoire",
+          name: "Montréal Victoire",
+          short: "Victoire",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "3",
+          venue: "Place Bell, Laval",
+          colors: ["#862633", "#041E42"]
         }
       ]
     },
@@ -2272,6 +2362,16 @@
           match: "Ottawa Senators",
           venue: "Canadian Tire Centre, Ottawa",
           colors: ["#DD1A32", "#B79257"]
+        },
+        {
+          key: "charge",
+          name: "Ottawa Charge",
+          short: "Charge",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "5",
+          venue: "TD Place, Ottawa",
+          colors: ["#A6192E", "#4B4F54"]
         }
       ]
     },
@@ -2346,6 +2446,16 @@
           match: "Vancouver Whitecaps",
           venue: "Vancouver Whitecaps",
           colors: ["#FFFFFF", "#12284C"]
+        },
+        {
+          key: "goldeneyes",
+          name: "Vancouver Goldeneyes",
+          short: "Goldeneyes",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "9",
+          venue: "Pacific Coliseum, Vancouver",
+          colors: ["#0F4777", "#EEE9D8"]
         }
       ]
     },
@@ -2388,6 +2498,26 @@
           match: "Connecticut Sun",
           venue: "Connecticut",
           colors: ["#F05023", "#0A2240"]
+        }
+      ]
+    },
+
+    "hamilton": {
+      name: "Hamilton",
+      shortName: "Hamilton",
+      abbr: "HAM",
+      tz: "America/Toronto",
+      tzLabel: "ET",
+      teams: [
+        {
+          key: "pwhl",
+          name: "PWHL Hamilton",
+          short: "PWHL",
+          leagueLabel: "PWHL · Hockey",
+          sportPath: "hockey/pwhl",
+          teamId: "11",
+          venue: "Hamilton, ON",
+          colors: ["#F1A40E", "#64111D"]
         }
       ]
     }

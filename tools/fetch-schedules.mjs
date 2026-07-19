@@ -184,6 +184,94 @@ async function fetchUpcoming(team) {
   );
 }
 
+// ---- PWHL (women's hockey) via HockeyTech ---------------------------------
+// ESPN doesn't carry the PWHL, so these teams (sportPath "hockey/pwhl") use
+// the league's own HockeyTech feed instead. One whole-league schedule request
+// per active season, bucketed per team — a separate adapter that produces the
+// exact same game shape the ESPN path writes.
+const PWHL_KEY = "694cfeed58c932ee"; // PWHL's public HockeyTech web key
+const PWHL_FEED =
+  "https://lscluster.hockeytech.com/feed/index.php?feed=modulekit&client_code=pwhl&fmt=json&key=" +
+  PWHL_KEY;
+
+async function getHockeyTech(view, extra) {
+  const url = PWHL_FEED + "&view=" + view + (extra || "");
+  for (let i = 1; ; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const text = await res.text();
+      return JSON.parse(text.replace(/^[^[{]*/, "")); // strip any JSONP-ish prefix
+    } catch (e) {
+      if (i >= 3) throw new Error(e.message + " for " + url);
+      await sleep(400 * i);
+    }
+  }
+}
+
+function pwhlChannels(broadcasters) {
+  const names = [];
+  if (broadcasters && typeof broadcasters === "object") {
+    for (const arr of Object.values(broadcasters)) {
+      if (!Array.isArray(arr)) continue;
+      for (const b of arr) {
+        const n = b && b.name;
+        if (n && names.indexOf(n) === -1) names.push(n);
+      }
+    }
+  }
+  return names;
+}
+
+// { "<teamId>": [ {date,home,opponent,label?,channels?} ... ] } for every PWHL
+// team. Computed once; teams with no future games get [] → "Offseason" card.
+async function buildPWHL() {
+  const byTeam = {};
+  const now = new Date();
+  try {
+    const seasons = ((await getHockeyTech("seasons")).SiteKit || {}).Seasons || [];
+    // Only seasons still running or yet to end (future games live here).
+    const active = seasons.filter(
+      (s) => s.end_date && new Date(s.end_date + "T23:59:59") >= now
+    );
+    for (const s of active) {
+      const preseason = /pre-?season/i.test(s.season_name || "");
+      const sched =
+        ((await getHockeyTech("schedule", "&season_id=" + s.season_id)).SiteKit || {})
+          .Schedule || [];
+      for (const g of sched) {
+        const d = new Date(g.GameDateISO8601 || g.date_time_played);
+        if (isNaN(d) || d <= now) continue; // upcoming only
+        const channels = pwhlChannels(g.broadcasters);
+        const add = (teamId, home, opponent) => {
+          const key = String(teamId);
+          (byTeam[key] || (byTeam[key] = [])).push({
+            date: d.toISOString(), home: home, opponent: opponent || "TBD",
+            _channels: channels, _preseason: preseason
+          });
+        };
+        add(g.home_team, true, g.visiting_team_name);
+        add(g.visiting_team, false, g.home_team_name);
+      }
+    }
+  } catch (e) {
+    console.log("  !! PWHL feed failed: " + e.message);
+    return {};
+  }
+  for (const k of Object.keys(byTeam)) {
+    byTeam[k] = byTeam[k]
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(0, GAMES_PER_TEAM)
+      .map((x) => {
+        const out = { date: x.date, home: x.home, opponent: x.opponent };
+        if (x._preseason) out.label = "Preseason";
+        if (x._channels.length) out.channels = x._channels;
+        return out;
+      });
+  }
+  return byTeam;
+}
+
 // ---- run over every team, with a small concurrency pool ----
 const jobs = [];
 for (const [, city] of Object.entries(cities)) {
@@ -191,13 +279,16 @@ for (const [, city] of Object.entries(cities)) {
 }
 
 const out = { generated: new Date().toISOString(), teams: {} };
+const pwhlByTeam = await buildPWHL(); // one-time; ESPN doesn't cover the PWHL
 let ok = 0, failed = 0, cursor = 0;
 async function worker() {
   while (cursor < jobs.length) {
     const team = jobs[cursor++];
     const key = team.sportPath + ":" + team.teamId;
     try {
-      out.teams[key] = await fetchUpcoming(team);
+      out.teams[key] = team.sportPath === "hockey/pwhl"
+        ? (pwhlByTeam[String(team.teamId)] || [])
+        : await fetchUpcoming(team);
       ok++;
     } catch (e) {
       out.teams[key] = [];

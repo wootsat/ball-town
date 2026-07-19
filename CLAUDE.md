@@ -25,6 +25,12 @@ statically (Cloudflare Pages, domain ball.town).
 - `tools/fetch-schedules.mjs` — data fetcher: hits ESPN once per team
   (server-side) and writes `data/schedules.json`, the cache the browser
   reads. Ports the exact core-API logic the client used to run live.
+  **PWHL is the exception:** ESPN doesn't carry the women's pro hockey
+  league, so teams with `sportPath: "hockey/pwhl"` are fetched from the
+  league's own **HockeyTech** feed instead (`buildPWHL`, a separate
+  adapter that emits the identical game shape) — one whole-league schedule
+  request per active season, bucketed per team. The public HockeyTech web
+  key is inline (same "unofficial feed" posture as the ESPN dependency).
 - `data/schedules.json` — **generated; never hand-edit.** The daily
   schedule cache, keyed by `<sportPath>:<teamId>`. Committed and served.
 - `.github/workflows/refresh.yml` — daily cron: runs the fetcher,
@@ -71,7 +77,9 @@ statically (Cloudflare Pages, domain ball.town).
   `sportPath`/`homeId`/`awayId`/`national` let the Live page apply the same
   Puffer-link rules the city pages use — `national` (`nationalTV`) mirrors
   the fetcher's `channelsFor` national-TV logic off the scoreboard's
-  `geoBroadcasts`. Edge-cached 30s via the Cache API. No Worker/KV/cron.
+  `geoBroadcasts`. **PWHL** live games are merged in from the HockeyTech
+  scorebar (`addPWHL`) — same `games`/`live` shape, keyed
+  `hockey/pwhl:<id>`. Edge-cached 30s via the Cache API. No Worker/KV/cron.
 - `live/index.html` — the **Live Now** page at `ball.town/live`
   (`assets/live.js` renders an Up-Next-style tile per in-progress game from
   `/scores`, **grouped under per-sport headers** — `SPORT_ORDER` fixes the
@@ -155,6 +163,15 @@ the browser reads the static cache. The core-API notes below still apply
 to the fetcher; CORS no longer matters (server-side) but the core API
 stays the source of truth because the richer `site.api` `/schedule`
 endpoint drops preseason/next-season games inconsistently per league.
+
+**ESPN does NOT carry the PWHL** (women's pro hockey) — its hockey stats
+API is only NHL, men's/women's college, World Cup, Olympics. The PWHL is
+sourced from its own HockeyTech feed instead (see `buildPWHL` in the
+fetcher and `addPWHL` in `functions/scores.js`); `sportPath:"hockey/pwhl"`
+routes teams to that adapter. `teamId` is the HockeyTech team id (1–13,
+no 7), not an ESPN id. Colors aren't in the feed — they're hand-set in
+`data/cities.js`. The 2026-27 schedule wasn't published yet as of this
+writing, so PWHL cards show "Offseason" until the league posts games.
 
 - **Only `sports.core.api.espn.com` sent CORS headers** (why the browser
   was limited to it; moot now but the fetcher still uses it). The richer

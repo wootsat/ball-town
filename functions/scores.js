@@ -81,6 +81,52 @@ function nationalTV(sportPath, postseason, comp) {
   return national;
 }
 
+// PWHL (women's hockey) live via HockeyTech — ESPN doesn't carry the league.
+const PWHL_SCOREBAR =
+  "https://lscluster.hockeytech.com/feed/index.php?feed=modulekit&client_code=pwhl&fmt=json" +
+  "&key=694cfeed58c932ee&view=scorebar&numberofdaysahead=1&numberofdaysback=1";
+function pwhlStatus(g, final) {
+  if (final) return g.GameStatusString || "Final";
+  if (String(g.Intermission) === "1") return "Intermission";
+  const p = g.PeriodNameShort || g.Period || "";
+  const clock = g.GameClock && g.GameClock !== "0:00" ? " " + g.GameClock : "";
+  return (p ? p + clock : (g.GameStatusString || "Live"));
+}
+// Merge PWHL in-progress/final games into the shared games map + live[].
+async function addPWHL(games, live) {
+  try {
+    const res = await fetch(PWHL_SCOREBAR);
+    if (!res.ok) return;
+    const j = JSON.parse((await res.text()).replace(/^[^[{]*/, ""));
+    const bar = (j.SiteKit && j.SiteKit.Scorebar) || [];
+    bar.forEach((g) => {
+      const gs = String(g.GameStatus);
+      // HockeyTech status: 1 not-started, 2 in-progress, 3/4 final.
+      const final = gs === "3" || gs === "4" ||
+        /final/i.test(String(g.GameStatusStringLong || g.GameStatusString || ""));
+      const inGame = !final && gs === "2";
+      if (!final && !inGame) return;
+      const status = pwhlStatus(g, final);
+      const home = g.HomeLongName || g.HomeCity;
+      const away = g.VisitorLongName || g.VisitorCity;
+      const hs = Number(g.HomeGoals), as = Number(g.VisitorGoals);
+      const st = final ? "final" : "in";
+      games["hockey/pwhl:" + g.HomeID] =
+        { date: g.GameDateISO8601, home: true, opponent: away, us: hs, them: as, status: status, state: st };
+      games["hockey/pwhl:" + g.VisitorID] =
+        { date: g.GameDateISO8601, home: false, opponent: home, us: as, them: hs, status: status, state: st };
+      if (!final) {
+        live.push({
+          sport: "hockey", sportPath: "hockey/pwhl",
+          away: away, home: home, awayId: g.VisitorID, homeId: g.HomeID,
+          awayScore: as, homeScore: hs, status: status,
+          homeColor: null, channels: [], national: false
+        });
+      }
+    });
+  } catch (e) { /* skip PWHL this cycle */ }
+}
+
 async function buildLive() {
   const games = {};
   const live = [];
@@ -149,6 +195,7 @@ async function buildLive() {
       });
     } catch (e) { /* skip this league on error */ }
   }));
+  await addPWHL(games, live); // ESPN doesn't carry the PWHL — its own feed does
   live.sort((a, b) => a.sport.localeCompare(b.sport) || a.home.localeCompare(b.home));
   return { generated: new Date().toISOString(), games: games, live: live };
 }
