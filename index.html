@@ -270,22 +270,6 @@
   }
   input.addEventListener("input", filter);
 })();
-
-// "See all live games" tile: red when any game is live, dark gray otherwise.
-(function () {
-  var el = document.getElementById("live-all");
-  if (!el) return;
-  function refresh() {
-    fetch("/scores", { cache: "no-cache" })
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        el.classList.toggle("has-live", !!(d && d.live && d.live.length));
-      })
-      .catch(function () { /* leave as-is */ });
-  }
-  refresh();
-  setInterval(refresh, 30000);
-})();
 </script>
 
 </body>

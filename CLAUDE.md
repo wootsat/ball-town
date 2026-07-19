@@ -83,13 +83,13 @@ statically (Cloudflare Pages, domain ball.town).
   same size, `.live-grid .next-team`) with a small muted "at" connector —
   no home/away favoritism in the text (the tile still tints its accent bar
   + icon with the home team's color via `--tc`). Every page **except** Live Now carries a
-  "See all live games" pill (`#live-all`) in the **topbar upper-right**
-  (it replaced the old `← All cities` crumb — the `ball.town` brand still
-  links home). It links to `/live` and turns red (`--live`) when `/scores`
-  reports any live game, else stays muted gray. On city pages the toggle
-  piggybacks on app.js's existing `/scores` poll (no extra request);
-  `index.html` has a small inline poller since it doesn't load app.js.
-  Live Now instead has a `← Back` crumb (`#back-link`, live.js): if the
+  "See all live games" link (`#live-all`) in the **topbar upper-right**
+  (it replaced the old `← All cities` crumb, and is styled identically —
+  plain muted-gray uppercase text, no box; the `ball.town` brand still
+  links home). It just links to `/live` — no live/red state (it used to
+  turn red when a game was live; that was dropped, along with the `/scores`
+  pollers that drove it). Live Now instead has a `← Back` crumb
+  (`#back-link`, live.js): if the
   referrer is same-origin it `history.back()`s to wherever you came from
   (city page or home); on a direct hit it falls through to its
   `../index.html` href.

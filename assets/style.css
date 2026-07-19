@@ -309,17 +309,13 @@ h1{
 }
 .city-search::placeholder{color:var(--ink-soft);font-weight:400}
 .city-search:focus{outline:none;border-color:var(--ink-soft)}
-/* "See all live games" topbar pill — red when any game is live, dark gray
-   otherwise. Sits upper-right in the topbar (replaces the old crumb link). */
+/* "See all live games" topbar link — plain text, styled exactly like the
+   old "← All cities" crumb it replaced (upper-right in the topbar). */
 .live-all{
-  align-self:center;flex:0 0 auto;white-space:nowrap;text-decoration:none;
-  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;
-  letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);
-  border:1px solid var(--line);border-radius:9px;padding:6px 12px;
-  transition:color .15s,border-color .15s;
+  font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-soft);text-decoration:none;white-space:nowrap;transition:color .15s;
 }
-.live-all:hover{border-color:var(--ink-soft)}
-.live-all.has-live{color:var(--live);border-color:color-mix(in srgb,var(--live) 45%,var(--line))}
+.live-all:hover{color:var(--ink)}
 
 /* ---------- Live Now page (/live) ---------- */
 .live-main{margin-bottom:16px}
