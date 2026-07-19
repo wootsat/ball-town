@@ -3,9 +3,12 @@
 //   games : { "<sportPath>:<teamId>": {date,home,opponent,us,them,status,state} }
 //           — both sides of every in-progress/finished game; what the city
 //             pages poll to overlay live/final scores.
-//   live  : [ {sport,home,away,homeScore,awayScore,status,homeColor,channels} ]
+//   live  : [ {sport,sportPath,home,away,homeId,awayId,homeScore,awayScore,
+//              status,homeColor,channels,national} ]
 //           — one entry per IN-PROGRESS game, for the /live "Live Now" page
-//             and the home-page "see all live games" indicator.
+//             and the home-page "see all live games" indicator. sportPath/
+//             homeId/awayId/national let the Live page apply the same
+//             Puffer-link rules the city pages use.
 // (Was /live; renamed so the /live URL can serve the Live Now page.)
 
 const BASE = "https://site.api.espn.com/apis/site/v2/sports";
@@ -53,6 +56,29 @@ function channelsOf(comp) {
     });
   });
   return out;
+}
+
+// National-TV detection, mirroring the fetcher's channelsFor() so the Live
+// Now page can apply the same Puffer-link rules the city pages use. NFL
+// regular/pre-season Fox & CBS are REGIONAL (never national here); every
+// other league (and the NFL playoffs) also counts the national Fox network.
+const NFL_NATIONAL = /\b(?:NBC|ABC|ESPN)\b/i;
+const FOX_NATIONAL = /^(?:FOX|FS1|FS2)$/i;
+function nationalTV(sportPath, postseason, comp) {
+  const isNFL = sportPath === "football/nfl";
+  let national = false;
+  (comp.geoBroadcasts || []).forEach((g) => {
+    if (!(g.type && g.type.shortName === "TV")) return;
+    const market = g.market && g.market.type;         // National / Home / Away
+    const name = g.media && (g.media.shortName || g.media.name);
+    if (!name) return;
+    if (isNFL && !postseason) {
+      if (market === "National" && NFL_NATIONAL.test(name)) national = true;
+    } else if (market === "National" || FOX_NATIONAL.test(name)) {
+      national = true;
+    }
+  });
+  return national;
 }
 
 async function buildLive() {
@@ -103,15 +129,20 @@ async function buildLive() {
             const parts = (ev.name || "").split(" at "); // [away, home]
             const nameOf = (comp0, fallback) =>
               (comp0.team && (comp0.team.displayName || comp0.team.shortDisplayName)) || fallback || "";
+            const postseason = !!(ev.season && ev.season.type === 3);
             live.push({
               sport: lg.split("/")[0],
+              sportPath: lg,
               away: nameOf(away, parts[0]),
               home: nameOf(home, parts[1]),
+              awayId: away.id,
+              homeId: home.id,
               awayScore: Number(away.score),
               homeScore: Number(home.score),
               status: status,
               homeColor: home.team && home.team.color ? "#" + home.team.color : null,
-              channels: channelsOf(comp)
+              channels: channelsOf(comp),
+              national: nationalTV(lg, postseason, comp)
             });
           }
         }

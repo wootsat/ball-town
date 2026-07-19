@@ -40,8 +40,54 @@
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
+
+  // ---------- TV network -> Puffer link (same rules as the city pages) ----------
+  // Puffer (Stanford) restreams the OTA networks (ABC/CBS/NBC/FOX). Every game
+  // on this page is in-progress, so the city pages' "live/soon only" gate is
+  // always met here. Carve-outs mirror app.js: never on Safari/iOS/iPad, and
+  // NFL regular/pre-season FOX/CBS are regional (Bay Area feed only).
+  const PUFFER_URL = "https://puffer.stanford.edu/";
+  const NO_PUFFER_LINKS = (function () {
+    const ua = navigator.userAgent || "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+      (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1); // iPadOS
+    const isSafari = /Safari/.test(ua) &&
+      !/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|OPT|Android|SamsungBrowser/.test(ua);
+    return isIOS || isSafari;
+  })();
+  const BAY_AREA_TEAM_IDS = (function () {
+    const set = {};
+    const bay = window.BALLTOWN && window.BALLTOWN.cities && window.BALLTOWN.cities["bay-area"];
+    if (bay) bay.teams.forEach((t) => (set[t.sportPath + ":" + t.teamId] = true));
+    return set;
+  })();
+  const EXT_ICON =
+    '<svg class="tv-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>' +
+    '<path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>';
+  function pufferLinkable(name, g) {
+    if (NO_PUFFER_LINKS) return false;
+    if (!/^(?:ABC|CBS|NBC|FOX)$/i.test(name)) return false; // exact OTA network
+    if (g.sportPath === "football/nfl" && /^(?:FOX|CBS)$/i.test(name) && !g.national) {
+      return !!(BAY_AREA_TEAM_IDS[g.sportPath + ":" + g.homeId] ||
+                BAY_AREA_TEAM_IDS[g.sportPath + ":" + g.awayId]);
+    }
+    return true;
+  }
+  function channelsHTML(g) {
+    return (g.channels || [])
+      .map((name) =>
+        pufferLinkable(name, g)
+          ? '<a class="tv-link" href="' + PUFFER_URL +
+            '" target="_blank" rel="noopener">' + esc(name) + EXT_ICON + "</a>"
+          : esc(name)
+      )
+      .join(", ");
+  }
+
   function tile(g) {
-    const chans = (g.channels || []).map(esc).join(" · ");
+    const chans = channelsHTML(g);
     return (
       '<div class="next-card live"' + (g.homeColor ? ' style="--tc:' + esc(g.homeColor) + '"' : "") + ">" +
       '<span class="next-ic" aria-hidden="true">' + (SPORT_ICONS[g.sport] || "") + "</span>" +
@@ -80,7 +126,12 @@
       const data = await (await fetch(SCORES_URL, { cache: "no-cache" })).json();
       live = (data && data.live) || [];
     } catch (e) {
-      return; // leave whatever's currently shown
+      // Transient failure: keep any games already shown. But if we've never
+      // rendered (e.g. /scores unreachable — including on localhost, where
+      // Functions don't run), surface the empty state instead of a blank
+      // page. Self-heals on the next successful poll.
+      if (!groups.children.length && empty) empty.hidden = false;
+      return;
     }
     if (!live.length) {
       groups.innerHTML = "";

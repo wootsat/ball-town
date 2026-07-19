@@ -63,17 +63,23 @@ statically (Cloudflare Pages, domain ball.town).
 - `functions/scores.js` — Cloudflare Pages Function served at `/scores`
   (was `/live` — renamed so the `/live` URL can serve the Live Now page).
   Polls ESPN scoreboards for **in-progress and finished** games, returns
-  `{games:{"<sportPath>:<teamId>":{...state}}, live:[{sport,home,away,homeScore,awayScore,status,homeColor,channels}]}`
+  `{games:{"<sportPath>:<teamId>":{...state}}, live:[{sport,sportPath,home,away,homeId,awayId,homeScore,awayScore,status,homeColor,channels,national}]}`
   — `games` (both sides, `state` = `"in"`|`"final"`) is what city pages
   poll; `live` (one entry per in-progress game) feeds the Live Now page +
   home-page indicator. `channels` is the flat, deduped list of every
   broadcast name on the game (`comp.broadcasts[].names`, `channelsOf`).
-  Edge-cached 30s via the Cache API. No Worker/KV/cron.
+  `sportPath`/`homeId`/`awayId`/`national` let the Live page apply the same
+  Puffer-link rules the city pages use — `national` (`nationalTV`) mirrors
+  the fetcher's `channelsFor` national-TV logic off the scoreboard's
+  `geoBroadcasts`. Edge-cached 30s via the Cache API. No Worker/KV/cron.
 - `live/index.html` — the **Live Now** page at `ball.town/live`
   (`assets/live.js` renders an Up-Next-style tile per in-progress game from
   `/scores`, **grouped under per-sport headers** — `SPORT_ORDER` fixes the
   order, a sport with no live games is omitted — each tile showing its
-  `channels`; refreshes 30s). Both teams render **identically** (white,
+  `channels` (comma-separated; OTA networks ABC/CBS/NBC/FOX become Puffer
+  links via a `pufferLinkable` port of app.js's rules — the page loads
+  `data/cities.js` for the Bay-Area NFL carve-out); refreshes 30s). Both
+  teams render **identically** (white,
   same size, `.live-grid .next-team`) with a small muted "at" connector —
   no home/away favoritism in the text (the tile still tints its accent bar
   + icon with the home team's color via `--tc`). Every page **except** Live Now carries a

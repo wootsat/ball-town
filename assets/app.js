@@ -12,7 +12,7 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.17";
+  const APP_VERSION = "2026-07-11.19";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /scores Pages Function (edge-cached ~30s).
@@ -1046,8 +1046,8 @@
   }
 
   // ---------- sticky mini-header (mobile) ----------
-  // Slides in a compact "ball.town <ABBR> · All cities" bar once the
-  // page's main header scrolls out of view. CSS shows it on mobile
+  // Slides in a compact "ball.town <ABBR> ... See all live games" bar once
+  // the page's main header scrolls out of view. CSS shows it on mobile
   // only; the scroll wiring is harmless on desktop (display:none).
 
   function initStickyHeader() {
@@ -1058,7 +1058,7 @@
       '<a class="brand2" href="../index.html">ball<span>.town</span>' +
       (city.abbr ? ' <span class="abbr">' + city.abbr + "</span>" : "") +
       "</a>" +
-      '<a class="crumb" href="../index.html">All cities</a>' +
+      '<a class="live-all" href="/live">See all live games</a>' +
       "</div>";
     document.body.appendChild(bar);
 
@@ -1187,10 +1187,13 @@
       try {
         const data = await (await fetch(LIVE_URL, { cache: "no-cache" })).json();
         games = (data && data.games) || {};
-        // Toggle the topbar "See all live games" pill (red when any game
-        // is live anywhere) off the same fetch — no extra request.
-        const la = document.getElementById("live-all");
-        if (la) la.classList.toggle("has-live", !!(data && data.live && data.live.length));
+        // Toggle every "See all live games" pill (topbar + the sticky
+        // mobile bar) red when any game is live anywhere — off the same
+        // fetch, no extra request.
+        const anyLive = !!(data && data.live && data.live.length);
+        document.querySelectorAll(".live-all").forEach((el) => {
+          el.classList.toggle("has-live", anyLive);
+        });
       } catch (e) {
         games = null; // /scores unreachable this cycle — keep state as-is
       }
@@ -1385,7 +1388,17 @@
 
   // Bell button on each team card opens a little popover with the two
   // options for that team. NOTIFY_SUPPORTED gates whether cards show a bell.
+  // Mobile only — notifications are a phone feature (you carry it), so the
+  // bell is left off the desktop UI entirely (same UA test the install
+  // prompt uses: real iOS/Android devices, not just a narrow window).
+  const IS_MOBILE = (function () {
+    const ua = navigator.userAgent || "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+      (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1); // iPadOS
+    return isIOS || /Android/.test(ua);
+  })();
   const NOTIFY_SUPPORTED =
+    IS_MOBILE &&
     "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   const BELL_SVG =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
