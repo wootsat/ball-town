@@ -29,10 +29,16 @@ function localParts(ts, tz) {
   }
 }
 
-function preMsg(pref, g) {
+// Sport-specific "start of play" phrase, keyed off the game id's sportPath
+// (e.g. "baseball/mlb:9" -> baseball). Football & soccer keep "kickoff".
+const START_PHRASE = { baseball: "first pitch", basketball: "tip-off", hockey: "puck drop" };
+function startPhrase(id) {
+  return START_PHRASE[String(id).split("/")[0]] || "kickoff";
+}
+function preMsg(pref, g, id) {
   return {
     title: pref.short + " starts soon",
-    body: (g.home ? "vs " : "at ") + g.opponent + " · about 10 minutes to kickoff",
+    body: (g.home ? "vs " : "at ") + g.opponent + " · about 10 minutes to " + startPhrase(id),
     tag: "pre:" + pref.short + ":" + g.date,
     url: pref.code ? "/" + pref.code : "/"
   };
@@ -76,7 +82,7 @@ async function run(env, now) {
       for (const g of teams[id] || []) {
         const mins = (Date.parse(g.date) - now) / 60000;
         if (mins >= PRE_LOW_MIN && mins <= PRE_HIGH_MIN) {
-          queue.push({ sub, id: sub.endpoint + "|pre|" + id + "|" + g.date, msg: preMsg(prefs[id], g) });
+          queue.push({ sub, id: sub.endpoint + "|pre|" + id + "|" + g.date, msg: preMsg(prefs[id], g, id) });
         }
       }
     }

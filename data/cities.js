@@ -32,7 +32,7 @@
       name: "Minnesota",
       shortName: "Minnesota",
       abbr: "MN",
-      tagline: "<b>Six pro teams, one page.</b> Upcoming games for every Twin Cities club, with dates and start times shown in your local time.",
+      tagline: "<b>Seven pro teams, one page.</b> Upcoming games for every Twin Cities club, with dates and start times shown in your local time.",
       stripLabel: "Up next in the Twin Cities",
       tz: "America/Chicago",
       tzLabel: "CT",
@@ -2521,6 +2521,33 @@
         }
       ]
     }
-  }
+  },
+
+  // English Premier League — addable via the team-search "+" only; these
+  // aren't tied to a metro, so they get no city page. Fetched from ESPN like
+  // any soccer team (sportPath soccer/eng.1); app.js folds them into the add
+  // REGISTRY and the fetcher into schedules.json.
+  extraTeams: [
+      { key: "bournemouth", name: "AFC Bournemouth", short: "Bournemouth", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "349", city: "Bournemouth", venue: "Vitality Stadium, Bournemouth", colors: ["#f42727", "#0000CC"] },
+      { key: "arsenal", name: "Arsenal", short: "Arsenal", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "359", city: "London", venue: "Emirates Stadium, London", colors: ["#e20520", "#003399"] },
+      { key: "astonvilla", name: "Aston Villa", short: "Aston Villa", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "362", city: "Birmingham", venue: "Villa Park, Birmingham", colors: ["#660e36", "#95bfe5"] },
+      { key: "brentford", name: "Brentford", short: "Brentford", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "337", city: "London", venue: "Gtech Community Stadium, London", colors: ["#f42727", "#ffffff"] },
+      { key: "brighton", name: "Brighton & Hove Albion", short: "Brighton", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "331", city: "Brighton", venue: "Amex Stadium, Brighton", colors: ["#0606fa", "#ffdd00"] },
+      { key: "chelsea", name: "Chelsea", short: "Chelsea", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "363", city: "London", venue: "Stamford Bridge, London", colors: ["#144992", "#ffffff"] },
+      { key: "coventry", name: "Coventry City", short: "Coventry", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "388", city: "Coventry", venue: "Coventry Building Society Arena, Coventry", colors: ["#4b92db", "#ffffff"] },
+      { key: "crystalpalace", name: "Crystal Palace", short: "Crystal Palace", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "384", city: "London", venue: "Selhurst Park, London", colors: ["#1b458f", "#c4122e"] },
+      { key: "everton", name: "Everton", short: "Everton", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "368", city: "Liverpool", venue: "Hill Dickinson Stadium, Liverpool", colors: ["#274488", "#ffffff"] },
+      { key: "fulham", name: "Fulham", short: "Fulham", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "370", city: "London", venue: "Craven Cottage, London", colors: ["#cccccc", "#000000"] },
+      { key: "hull", name: "Hull City", short: "Hull", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "306", city: "Hull", venue: "MKM Stadium, Hull", colors: ["#f28800", "#000000"] },
+      { key: "ipswich", name: "Ipswich Town", short: "Ipswich", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "373", city: "Ipswich", venue: "Portman Road, Ipswich", colors: ["#0000fa", "#cd1937"] },
+      { key: "leeds", name: "Leeds United", short: "Leeds", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "357", city: "Leeds", venue: "Elland Road, Leeds", colors: ["#cccccc", "#0000ff"] },
+      { key: "liverpool", name: "Liverpool", short: "Liverpool", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "364", city: "Liverpool", venue: "Anfield, Liverpool", colors: ["#d11317", "#ffffff"] },
+      { key: "mancity", name: "Manchester City", short: "Man City", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "382", city: "Manchester", venue: "Etihad Stadium, Manchester", colors: ["#6cade5", "#000000"] },
+      { key: "manutd", name: "Manchester United", short: "Man United", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "360", city: "Manchester", venue: "Old Trafford, Manchester", colors: ["#da020e", "#ffffff"] },
+      { key: "newcastle", name: "Newcastle United", short: "Newcastle", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "361", city: "Newcastle", venue: "St James' Park, Newcastle", colors: ["#2b2b2b", "#ffffff"] },
+      { key: "nottmforest", name: "Nottingham Forest", short: "Nottm Forest", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "393", city: "Nottingham", venue: "The City Ground, Nottingham", colors: ["#c8102e", "#ffffff"] },
+      { key: "sunderland", name: "Sunderland", short: "Sunderland", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "366", city: "Sunderland", venue: "Stadium of Light, Sunderland", colors: ["#EB172B", "#000000"] },
+      { key: "spurs", name: "Tottenham Hotspur", short: "Spurs", leagueLabel: "Premier League · Soccer", sportPath: "soccer/eng.1", teamId: "367", city: "London", venue: "Tottenham Hotspur Stadium, London", colors: ["#cccccc", "#132257"] }
+  ]
   };
 });

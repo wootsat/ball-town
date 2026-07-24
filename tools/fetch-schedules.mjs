@@ -20,7 +20,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const { cities } = require(join(root, "data", "cities.js"));
+const { cities, extraTeams } = require(join(root, "data", "cities.js"));
 
 const API = "https://sports.core.api.espn.com/v2/sports";
 const GAMES_PER_TEAM = 7;
@@ -277,6 +277,7 @@ const jobs = [];
 for (const [, city] of Object.entries(cities)) {
   for (const team of city.teams) jobs.push(team);
 }
+for (const team of extraTeams || []) jobs.push(team); // city-less teams (EPL)
 
 const out = { generated: new Date().toISOString(), teams: {} };
 const pwhlByTeam = await buildPWHL(); // one-time; ESPN doesn't cover the PWHL

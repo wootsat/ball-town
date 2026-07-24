@@ -47,7 +47,8 @@ The site (Pages) auto-deploys on `git push` as usual. The **Worker here is deplo
    ```
 
 That's it. The cron runs every 5 minutes; morning alerts fire at ~08:00 in each
-user's local timezone, pre-game alerts ~10 minutes before kickoff.
+user's local timezone, pre-game alerts ~10 minutes before game start (the
+message says "first pitch" / "tip-off" / "puck drop" / "kickoff" per sport).
 
 ## Notes / limits (free plan)
 - **iPhone:** notifications only work if the user has **added ball.town to their Home Screen** (Apple restriction). Android works in-browser.

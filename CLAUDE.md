@@ -12,7 +12,13 @@ statically (Cloudflare Pages, domain ball.town).
 
 - `data/cities.js` — **single source of truth** for cities/teams. Dual
   environment: `<script>` sets `window.BALLTOWN` in the browser;
-  `module.exports` lets the generator import it in Node.
+  `module.exports` lets the generator import it in Node. Also exports a flat
+  **`extraTeams`** array: city-less teams (the **English Premier League**,
+  `sportPath: "soccer/eng.1"`) that are addable via the team-search `+` but
+  belong to no metro — the fetcher caches their schedules and app.js folds
+  them into the add `REGISTRY`, but `build.mjs` ignores them so they get **no
+  city page**. Each carries a `city` field (for the search list) instead of
+  living under a city.
 - `tools/city.template.html` — the one city-page skeleton. Edit this to
   change structure for every city.
 - `tools/build.mjs` — page generator: writes `<code>/index.html` +
@@ -303,7 +309,9 @@ cities (keyed by `<sportPath>:<teamId>`), none of these need an ESPN call.
   search panel (`#team-add`, `ensureAddPanel`) that searches a flat
   `REGISTRY` of every config team (by name/city/league) for teams not
   already on the page; picking one adds a full card + strip entry from the
-  cache. `balltown:added:<slug>` (array of ids). Added teams are **cloned
+  cache. The `REGISTRY` includes both every city's teams **and** the city-less
+  `extraTeams` (EPL), so Premier League clubs are searchable/addable on any
+  city page. `balltown:added:<slug>` (array of ids). Added teams are **cloned
   with `key = "<sportPath>:<teamId>"`** so their chip/card `data-key` can
   never collide with a base team's plain key; they render with a `×`
   remove control.
