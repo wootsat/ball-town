@@ -91,10 +91,12 @@ async function channelsFor(ev, game) {
     // the PLAYOFFS every network's game is national, so the normal rule
     // applies (Fox/CBS included).
     const isNFL = game.sportPath === "football/nfl";
-    const NFL_NATIONAL = /\b(?:NBC|ABC|ESPN)\b/i;
-    // The national Fox network/cable — NOT local "Fox 5 <City>" affiliates.
-    // Fox is regional for the NFL but national for every other league.
-    const FOX_NATIONAL = /^(?:FOX|FS1|FS2)$/i;
+    const NFL_NATIONAL = /\b(?:NBC|ABC|ESPN|NFL ?Net(?:work)?)\b/i;
+    // National cable/network TV channels ESPN often leaves market-less (so
+    // the market check alone misses them). Fox (NOT local "Fox 5 <City>"
+    // affiliates) is regional for the NFL but national elsewhere; USA Network
+    // carries national soccer/hockey windows.
+    const NATIONAL_TV = /^(?:FOX|FS1|FS2|USA(?: Net(?:work)?)?)$/i;
     // "Nat'l Stream" = a national direct-to-consumer streamer that carries
     // the game for any basic subscriber. These services are national by
     // nature, so a NAME match is enough (note MLS "Apple TV" = Season Pass
@@ -121,7 +123,7 @@ async function channelsFor(ev, game) {
       if (type === "TV") {
         if (isNFL && !game.postseason) {
           if (market === "National" && NFL_NATIONAL.test(name)) national = true;
-        } else if (market === "National" || FOX_NATIONAL.test(name)) {
+        } else if (market === "National" || NATIONAL_TV.test(name)) {
           national = true;
         }
       }
@@ -176,9 +178,18 @@ async function fetchUpcoming(team) {
       const bc = await channelsFor(ev, game);
       const out = { date: game.date.toISOString(), home: game.home, opponent: game.opponent };
       if (game.label) out.label = game.label;
-      if (bc.names.length) out.channels = bc.names;
+      let names = bc.names;
+      let natStream = bc.natStream;
+      // Every Premier League match streams on Peacock in the US (NBC's rights),
+      // but ESPN rarely lists it — so guarantee it. Any USA Net / NBC TV feed
+      // ESPN does provide stays alongside it (that game is a simulcast).
+      if (team.sportPath === "soccer/eng.1") {
+        if (!names.some((n) => /peacock/i.test(n))) names = names.concat("Peacock");
+        natStream = true;
+      }
+      if (names.length) out.channels = names;
       if (bc.national) out.national = true;
-      if (bc.natStream) out.natStream = true;
+      if (natStream) out.natStream = true;
       return out;
     })
   );

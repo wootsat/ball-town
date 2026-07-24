@@ -61,9 +61,10 @@ function channelsOf(comp) {
 // National-TV detection, mirroring the fetcher's channelsFor() so the Live
 // Now page can apply the same Puffer-link rules the city pages use. NFL
 // regular/pre-season Fox & CBS are REGIONAL (never national here); every
-// other league (and the NFL playoffs) also counts the national Fox network.
-const NFL_NATIONAL = /\b(?:NBC|ABC|ESPN)\b/i;
-const FOX_NATIONAL = /^(?:FOX|FS1|FS2)$/i;
+// other league (and the NFL playoffs) also counts national cable/network TV
+// (Fox family, USA Network) that ESPN often leaves market-less.
+const NFL_NATIONAL = /\b(?:NBC|ABC|ESPN|NFL ?Net(?:work)?)\b/i;
+const NATIONAL_TV = /^(?:FOX|FS1|FS2|USA(?: Net(?:work)?)?)$/i;
 function nationalTV(sportPath, postseason, comp) {
   const isNFL = sportPath === "football/nfl";
   let national = false;
@@ -74,7 +75,7 @@ function nationalTV(sportPath, postseason, comp) {
     if (!name) return;
     if (isNFL && !postseason) {
       if (market === "National" && NFL_NATIONAL.test(name)) national = true;
-    } else if (market === "National" || FOX_NATIONAL.test(name)) {
+    } else if (market === "National" || NATIONAL_TV.test(name)) {
       national = true;
     }
   });

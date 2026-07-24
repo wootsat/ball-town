@@ -18,7 +18,10 @@ statically (Cloudflare Pages, domain ball.town).
   belong to no metro — the fetcher caches their schedules and app.js folds
   them into the add `REGISTRY`, but `build.mjs` ignores them so they get **no
   city page**. Each carries a `city` field (for the search list) instead of
-  living under a city.
+  living under a city. ESPN barely lists EPL broadcasts, so the fetcher
+  **hardcodes "Peacock"** (+ `natStream`) on every `soccer/eng.1` game — every
+  match streams there in the US under NBC's rights — keeping any USA Net / NBC
+  TV feed ESPN does provide alongside it.
 - `tools/city.template.html` — the one city-page skeleton. Edit this to
   change structure for every city.
 - `tools/build.mjs` — page generator: writes `<code>/index.html` +
@@ -210,17 +213,19 @@ writing, so PWHL cards show "Offseason" until the league posts games.
   "Radio"). The **"Nat'l TV"** tag flags games with a `market:National`
   **and** `type:TV` broadcast — this excludes the always-on league
   streaming packages (MLB.TV, League Pass are `Streaming`) that would
-  otherwise mark nearly every game national. Stored as `national:true`
-  in schedules.json; app.js renders it (and the `label:"Preseason"` tag)
-  as small pills in the game row.
+  otherwise mark nearly every game national. Plus a `NATIONAL_TV` name
+  allowlist (Fox family + **USA Network**) catches national cable channels
+  ESPN often returns **market-less** (so the market check alone misses them).
+  Stored as `national:true` in schedules.json; app.js renders it (and the
+  `label:"Preseason"` tag) as small pills in the game row.
   - **NFL exception** (`channelsFor`): Fox & CBS carry *regional*
     Sunday-afternoon windows, so in the regular/pre-season they DON'T earn
-    the tag — only **NBC, ABC, ESPN** do (allowlist regex on the network
-    name). In the **playoffs** (`postseason`, ESPN seasonType **type 3**)
-    the normal rule applies, so Fox/CBS count. `toGame` passes `sportPath`
-    + `postseason` through the (JSON-invisible) game object for this.
-    Note: this allowlist also skips NFL Network regular-season games
-    (Amazon TNF is `Streaming`, so never tagged anyway).
+    the tag — only **NBC, ABC, ESPN, and NFL Network** ("NFL Net" in ESPN's
+    data) do (allowlist regex on the network name). In the **playoffs**
+    (`postseason`, ESPN seasonType **type 3**) the normal rule applies, so
+    Fox/CBS count. `toGame` passes `sportPath` + `postseason` through the
+    (JSON-invisible) game object for this. (Amazon TNF is `Streaming`, so it's
+    a Nat'l Stream, never a Nat'l TV.)
 - A team with zero events in the ~8-month window is a real state
   (leagues publish next season's schedule late) — that's the
   "Offseason" card, not a bug.
