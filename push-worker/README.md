@@ -59,3 +59,31 @@ message says "first pitch" / "tip-off" / "puck drop" / "kickoff" per sport).
 1. Open ball.town on a phone (installed to Home Screen on iPhone), tick a box under **Game alerts**, allow notifications.
 2. Confirm a row appears in D1: `wrangler d1 execute balltown-notify --remote --command "SELECT endpoint, prefs FROM subscriptions"`.
 3. Force a send without waiting for a game: temporarily widen the window or set `MORNING_HOUR` in `src/index.js`, or trigger the scheduled handler locally with `wrangler dev --test-scheduled` then hit `/__scheduled`.
+
+## Notifications table
+
+The live snapshot of who's subscribed and to what. Ask for an "updated
+notifications table" any time and it's rebuilt from these two read-only D1
+queries (run from `push-worker/`, bash/git-bash — the `\$` escapes are so the
+shell leaves the JSON `$.` paths alone). Each `subscriptions` row is one
+browser/device; `prefs` is JSON keyed by `<sportPath>:<teamId>` →
+`{morning, pre, short, code}`.
+
+**Summary** — total devices + total team alerts (a team with either toggle on):
+```
+wrangler d1 execute balltown-notify --remote --json --command "SELECT (SELECT COUNT(*) FROM subscriptions) AS subscriptions, (SELECT COUNT(*) FROM subscriptions, json_each(prefs) WHERE json_extract(value,'\$.morning')=1 OR json_extract(value,'\$.pre')=1) AS team_alerts"
+```
+
+**Per-team breakdown** — one row per team, with subscriber + toggle counts:
+```
+wrangler d1 execute balltown-notify --remote --json --command "SELECT json_each.key AS team_key, json_extract(json_each.value,'\$.short') AS team, COUNT(*) AS subscribers, SUM(CASE WHEN json_extract(json_each.value,'\$.morning')=1 THEN 1 ELSE 0 END) AS morning, SUM(CASE WHEN json_extract(json_each.value,'\$.pre')=1 THEN 1 ELSE 0 END) AS pre FROM subscriptions, json_each(subscriptions.prefs) GROUP BY json_each.key ORDER BY subscribers DESC, team"
+```
+
+Rendered as a table with columns: **Team · League · Subscribers · Morning ·
+10-min**, plus totals (subscribers, team alerts, and individual toggles =
+morning + pre). Example shape:
+
+| Team | League | Subscribers | Morning | 10-min |
+|---|---|---|---|---|
+| Lynx | WNBA | 2 | 2 | 2 |
+| … | … | … | … | … |

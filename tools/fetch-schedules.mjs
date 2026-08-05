@@ -30,13 +30,23 @@ const TEAM_CONCURRENCY = 4; // gentle on ESPN; daily job, no rush
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// ESPN serves an HTML error page (not JSON) to requests with an empty/weak
+// User-Agent, so always send a browser-like one (this is what broke the live
+// /scores Worker; harden the daily fetcher against the same tightening).
+const FETCH_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  "Accept": "application/json, text/plain, */*"
+};
 async function getJSON(url, tries = 3) {
   const u = url.replace(/^http:/, "https:");
   for (let i = 1; ; i++) {
     try {
-      const res = await fetch(u);
+      const res = await fetch(u, { headers: FETCH_HEADERS });
       if (!res.ok) throw new Error("HTTP " + res.status);
-      return await res.json();
+      const text = await res.text();
+      if (/^\s*</.test(text)) throw new Error("HTML response (not JSON)");
+      return JSON.parse(text);
     } catch (e) {
       if (i >= tries) throw new Error(e.message + " for " + u);
       await sleep(400 * i); // backoff before retry

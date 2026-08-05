@@ -173,6 +173,14 @@ to the fetcher; CORS no longer matters (server-side) but the core API
 stays the source of truth because the richer `site.api` `/schedule`
 endpoint drops preseason/next-season games inconsistently per league.
 
+**ESPN requires a User-Agent.** As of Aug 2026 ESPN returns an **HTML error
+page** (not JSON) to requests with an empty/absent UA — which is what a
+Cloudflare Worker's default `fetch` sends, so it silently broke the live
+`/scores` Function (every league's `res.json()` threw → all games dropped).
+Both `functions/scores.js` (`getJSON`) and `tools/fetch-schedules.mjs`
+(`getJSON`/`FETCH_HEADERS`) now send a **browser User-Agent + JSON Accept**
+and skip any HTML response. Keep that UA on every ESPN call.
+
 **ESPN does NOT carry the PWHL** (women's pro hockey) — its hockey stats
 API is only NHL, men's/women's college, World Cup, Olympics. The PWHL is
 sourced from its own HockeyTech feed instead (see `buildPWHL` in the

@@ -18,6 +18,28 @@ const LEAGUES = [
 ];
 const TTL = 30; // seconds
 
+// ESPN serves an HTML error page (not JSON) to requests with an empty/absent
+// User-Agent — which is what the Worker's default fetch sends, so every league
+// was being silently dropped. Always send a browser-like UA + JSON Accept, and
+// retry once, skipping any non-JSON (HTML) response. Returns null on failure.
+const ESPN_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  "Accept": "application/json, text/plain, */*"
+};
+async function getJSON(url, headers) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url, { headers: headers || ESPN_HEADERS });
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (/^\s*</.test(text)) continue; // HTML error page, not JSON
+      return JSON.parse(text.replace(/^[^[{]*/, "")); // tolerate JSONP-ish prefix
+    } catch (e) { /* retry */ }
+  }
+  return null;
+}
+
 // Compact per-sport status ("Bot 7", "3Q 3:46", "2nd 5:12", "72'"),
 // falling back to ESPN's own text for stoppages (delay, halftime, …).
 function liveStatus(lg, status) {
@@ -96,9 +118,8 @@ function pwhlStatus(g, final) {
 // Merge PWHL in-progress/final games into the shared games map + live[].
 async function addPWHL(games, live) {
   try {
-    const res = await fetch(PWHL_SCOREBAR);
-    if (!res.ok) return;
-    const j = JSON.parse((await res.text()).replace(/^[^[{]*/, ""));
+    const j = await getJSON(PWHL_SCOREBAR);
+    if (!j) return;
     const bar = (j.SiteKit && j.SiteKit.Scorebar) || [];
     bar.forEach((g) => {
       const gs = String(g.GameStatus);
@@ -133,9 +154,8 @@ async function buildLive() {
   const live = [];
   await Promise.all(LEAGUES.map(async (lg) => {
     try {
-      const res = await fetch(BASE + "/" + lg + "/scoreboard");
-      if (!res.ok) return;
-      const j = await res.json();
+      const j = await getJSON(BASE + "/" + lg + "/scoreboard");
+      if (!j) return;
       (j.events || []).forEach((ev) => {
         const st = ev.status && ev.status.type;
         // in-progress ("in") or finished ("post"). "post" games stay on
