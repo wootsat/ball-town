@@ -11,17 +11,25 @@
 //             Puffer-link rules the city pages use.
 // (Was /live; renamed so the /live URL can serve the Live Now page.)
 
-const BASE = "https://site.api.espn.com/apis/site/v2/sports";
+// Scoreboard hosts, tried in order. **`site.api.espn.com` returns 403 "Access
+// Denied" (Akamai) to requests from Cloudflare's network** — that broke every
+// league here while the same code worked fine from a laptop. `site.web.api`
+// serves the byte-identical payload on the same path and is NOT blocked, so
+// it's the primary; the old host stays as a fallback in case that flips.
+const BASES = [
+  "https://site.web.api.espn.com/apis/site/v2/sports",
+  "https://site.api.espn.com/apis/site/v2/sports"
+];
 const LEAGUES = [
   "baseball/mlb", "basketball/wnba", "basketball/nba",
   "football/nfl", "hockey/nhl", "soccer/usa.1"
 ];
 const TTL = 30; // seconds
 
-// ESPN serves an HTML error page (not JSON) to requests with an empty/absent
-// User-Agent — which is what the Worker's default fetch sends, so every league
-// was being silently dropped. Always send a browser-like UA + JSON Accept, and
-// retry once, skipping any non-JSON (HTML) response. Returns null on failure.
+// ESPN also serves an HTML error page (not JSON) to requests with an empty or
+// absent User-Agent — which is what the Worker's default fetch sends. Always
+// send a browser-like UA + JSON Accept, retry once, and skip any non-JSON
+// (HTML) response. Returns null on failure.
 const ESPN_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
     "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
@@ -36,6 +44,15 @@ async function getJSON(url, headers) {
       if (/^\s*</.test(text)) continue; // HTML error page, not JSON
       return JSON.parse(text.replace(/^[^[{]*/, "")); // tolerate JSONP-ish prefix
     } catch (e) { /* retry */ }
+  }
+  return null;
+}
+
+// One league's scoreboard, trying each host until one answers with JSON.
+async function scoreboard(lg) {
+  for (const base of BASES) {
+    const j = await getJSON(base + "/" + lg + "/scoreboard");
+    if (j) return j;
   }
   return null;
 }
@@ -154,7 +171,7 @@ async function buildLive() {
   const live = [];
   await Promise.all(LEAGUES.map(async (lg) => {
     try {
-      const j = await getJSON(BASE + "/" + lg + "/scoreboard");
+      const j = await scoreboard(lg);
       if (!j) return;
       (j.events || []).forEach((ev) => {
         const st = ev.status && ev.status.type;

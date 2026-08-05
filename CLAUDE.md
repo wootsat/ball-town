@@ -173,13 +173,27 @@ to the fetcher; CORS no longer matters (server-side) but the core API
 stays the source of truth because the richer `site.api` `/schedule`
 endpoint drops preseason/next-season games inconsistently per league.
 
-**ESPN requires a User-Agent.** As of Aug 2026 ESPN returns an **HTML error
-page** (not JSON) to requests with an empty/absent UA — which is what a
-Cloudflare Worker's default `fetch` sends, so it silently broke the live
-`/scores` Function (every league's `res.json()` threw → all games dropped).
-Both `functions/scores.js` (`getJSON`) and `tools/fetch-schedules.mjs`
-(`getJSON`/`FETCH_HEADERS`) now send a **browser User-Agent + JSON Accept**
-and skip any HTML response. Keep that UA on every ESPN call.
+**`site.api.espn.com` is BLOCKED from Cloudflare (403).** As of Aug 2026
+Akamai answers requests to `site.api.espn.com` **from Cloudflare's network**
+with a `403 Access Denied` HTML page, no matter the User-Agent. This silently
+killed the live `/scores` Function — all six leagues threw on `res.json()` and
+were skipped, so only the (non-ESPN) PWHL games survived: `games:2, live:0`.
+The same code from a laptop worked fine, which is what makes it confusing.
+
+- **Fix:** `functions/scores.js` fetches scoreboards from
+  **`site.web.api.espn.com`** (`BASES[0]`), which serves the **byte-identical
+  payload on the same path** and is not blocked; the old host is kept as a
+  fallback (`scoreboard()` tries each in order).
+- `sports.core.api.espn.com` (the daily fetcher's host) is **not** blocked —
+  that's why schedules kept working while live scores died.
+- **Also send a User-Agent.** ESPN returns HTML (not JSON) to requests with an
+  empty/absent UA — a Worker's default `fetch` sends none. Both
+  `functions/scores.js` (`getJSON`/`ESPN_HEADERS`) and
+  `tools/fetch-schedules.mjs` (`getJSON`/`FETCH_HEADERS`) send a browser UA +
+  JSON Accept and skip any HTML response.
+- **Debugging tip:** `wrangler dev --remote` runs the code on Cloudflare's
+  edge, which is the only way to reproduce this class of bug locally — a plain
+  `node` run will always pass.
 
 **ESPN does NOT carry the PWHL** (women's pro hockey) — its hockey stats
 API is only NHL, men's/women's college, World Cup, Olympics. The PWHL is
