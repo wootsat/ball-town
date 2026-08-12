@@ -78,8 +78,13 @@ statically (Cloudflare Pages, domain ball.town).
 - `functions/scores.js` — Cloudflare Pages Function served at `/scores`
   (was `/live` — renamed so the `/live` URL can serve the Live Now page).
   Polls ESPN scoreboards for **in-progress and finished** games, returns
-  `{games:{"<sportPath>:<teamId>":{...state}}, live:[{sport,sportPath,home,away,homeId,awayId,homeScore,awayScore,status,homeColor,channels,national}]}`
-  — `games` (both sides, `state` = `"in"`|`"final"`) is what city pages
+  `{degraded,failed,games:{"<sportPath>:<teamId>":{...state}}, live:[{sport,sportPath,home,away,homeId,awayId,homeScore,awayScore,status,homeColor,channels,national}]}`
+  — **`degraded`/`failed`** are the health signal: true + the list of feeds
+  that couldn't be read this cycle. Without it an upstream block is
+  indistinguishable from "nothing is live" (exactly how the Akamai 403 below
+  went unnoticed) — so **`curl https://ball.town/scores | head` is the first
+  debugging step** when live scores look wrong. Clients ignore both fields.
+  `games` (both sides, `state` = `"in"`|`"final"`) is what city pages
   poll; `live` (one entry per in-progress game) feeds the Live Now page +
   home-page indicator. `channels` is the flat, deduped list of every
   broadcast name on the game (`comp.broadcasts[].names`, `channelsOf`).
@@ -194,6 +199,12 @@ The same code from a laptop worked fine, which is what makes it confusing.
 - **Debugging tip:** `wrangler dev --remote` runs the code on Cloudflare's
   edge, which is the only way to reproduce this class of bug locally — a plain
   `node` run will always pass.
+- **`cdn.espn.com` is not a usable fallback** — it's on the same Akamai
+  network as `site.api` and answers a `202` bot-challenge HTML page (~2KB)
+  instead of data, so it'd likely fail in the same moment anyway. The core
+  API can't back the live scoreboard either: it returns `$ref` lists, so one
+  league would cost ~45 subrequests (Workers' limit is 50 per request).
+  Hence just the two `BASES` hosts + the `degraded` signal.
 
 **ESPN does NOT carry the PWHL** (women's pro hockey) — its hockey stats
 API is only NHL, men's/women's college, World Cup, Olympics. The PWHL is
@@ -367,6 +378,27 @@ Two rendering gotchas this code relies on (see also Gotchas below):
 `display:flex` outranks the UA `[hidden]` rule), and the collapse caret is
 a `<span>` wrapper — CSS `transform` on an SVG **root** element computes to
 identity in browsers, so rotating the svg directly does nothing.
+
+## Holiday markers (client-side)
+
+Games falling on a major US/Canada holiday get a small emoji next to their
+date — in both the game row and the up-next strip (`holidayHTML`, appended to
+whichever cell carries the date so it appears exactly once per entry, in every
+live/final/soon state). Pure display logic in app.js: **no data, fetch, or
+build change** — `schedules.json` stores nothing about holidays.
+
+- **Computed from the date's LOCAL parts** (`getFullYear/getMonth/getDate`),
+  the same basis `dayLabel` uses. This matters: a 7pm ET Christmas game is
+  Dec 26 in UTC, so deriving it server-side (or from the ISO string) would
+  mislabel it. Keep any new holiday logic on local parts.
+- Covered: New Year's Day 🎉, St. Patrick's ☘️, Easter 🐰, Memorial Day 🎖️,
+  Canada Day 🍁, Independence Day 🎆, Labor Day 🛠️, Canadian Thanksgiving 🦃,
+  Halloween 🎃, US Thanksgiving 🦃, Christmas Eve/Christmas 🎄, New Year's
+  Eve 🎊. Fixed dates live in the `FIXED_HOLIDAYS` map; floating ones use
+  `nthWeekday`/`lastWeekday`, and Easter uses a Gregorian computus
+  (`easterMD`) since it moves. Add/remove by editing that map or `holidayFor`.
+- **No country-flag emoji** (🇺🇸 etc.) — Windows renders those as bare letter
+  pairs ("US"). That's why Memorial Day is 🎖️, not a flag.
 
 ## Gotchas
 

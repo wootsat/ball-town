@@ -241,6 +241,9 @@ h1{
 .g-opp{font-weight:500}
 .g-opp .vs{color:var(--ink-soft);font-weight:400;margin-right:4px}
 .g-time{font-size:14px;color:var(--ink-soft);white-space:nowrap}
+/* Holiday marker (🎄, 🦃, …) next to a game's date. Emoji carry their own
+   color, so no theming — just keep them from throwing off the line height. */
+.g-holiday{font-size:12px;line-height:1;vertical-align:baseline;cursor:default}
 .g-tv{display:block;font-size:12px;color:var(--ink-soft);margin-top:1px}
 /* OTA network names linked to Puffer */
 .tv-link{color:var(--ink);text-decoration:underline;text-underline-offset:2px;white-space:nowrap}

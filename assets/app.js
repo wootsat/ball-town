@@ -12,7 +12,7 @@
   // into this file, so the footer shows the version of the code ACTUALLY
   // running — the reliable "did my update land?" signal (a server-fetched
   // timestamp would read fresh even while a stale PWA runs old code).
-  const APP_VERSION = "2026-07-11.21";
+  const APP_VERSION = "2026-07-11.22";
   // The daily static cache the browser reads instead of calling ESPN.
   const SCHEDULES_URL = "../data/schedules.json";
   // In-progress scores from the /scores Pages Function (edge-cached ~30s).
@@ -190,6 +190,68 @@
     return fmtDate.format(d);
   }
 
+  // ---------- holiday markers ----------
+  // A small icon next to the date when a game falls on a major US/Canada
+  // holiday. Computed from the date's LOCAL parts (same basis dayLabel uses),
+  // so it always matches the date the viewer actually sees — a 7pm ET
+  // Christmas game is Dec 26 in UTC, and flagging that would be wrong.
+  // Note: no country-flag emoji — Windows renders those as letter pairs.
+  const FIXED_HOLIDAYS = {
+    "1-1": ["🎉", "New Year's Day"],
+    "3-17": ["☘️", "St. Patrick's Day"],
+    "7-1": ["🍁", "Canada Day"],
+    "7-4": ["🎆", "Independence Day"],
+    "10-31": ["🎃", "Halloween"],
+    "12-24": ["🎄", "Christmas Eve"],
+    "12-25": ["🎄", "Christmas"],
+    "12-31": ["🎊", "New Year's Eve"]
+  };
+  // Day-of-month of the nth <weekday> (0=Sun) of a month (1-based month).
+  function nthWeekday(year, month, weekday, n) {
+    const first = new Date(year, month - 1, 1);
+    return 1 + ((weekday - first.getDay() + 7) % 7) + (n - 1) * 7;
+  }
+  // Day-of-month of the LAST <weekday> of a month.
+  function lastWeekday(year, month, weekday) {
+    const last = new Date(year, month, 0); // day 0 of next month = last of this
+    return last.getDate() - ((last.getDay() - weekday + 7) % 7);
+  }
+  // Gregorian Easter (Meeus/Jones/Butcher) — it moves, so it needs computing.
+  function easterMD(year) {
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+    const d = Math.floor(b / 4), e = b % 4;
+    const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    return {
+      month: Math.floor((h + l - 7 * m + 114) / 31),
+      day: ((h + l - 7 * m + 114) % 31) + 1
+    };
+  }
+  function holidayFor(date) {
+    const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+    const fixed = FIXED_HOLIDAYS[m + "-" + d];
+    if (fixed) return fixed;
+    if (m === 5 && d === lastWeekday(y, 5, 1)) return ["🎖️", "Memorial Day"];
+    if (m === 9 && d === nthWeekday(y, 9, 1, 1)) return ["🛠️", "Labor Day"];
+    if (m === 10 && d === nthWeekday(y, 10, 1, 2)) return ["🦃", "Thanksgiving (Canada)"];
+    if (m === 11 && d === nthWeekday(y, 11, 4, 4)) return ["🦃", "Thanksgiving"];
+    const e = easterMD(y);
+    if (m === e.month && d === e.day) return ["🐰", "Easter"];
+    return null;
+  }
+  // Icon markup for a game's date (empty string when it's not a holiday).
+  function holidayHTML(date) {
+    const h = holidayFor(date);
+    if (!h) return "";
+    return (
+      ' <span class="g-holiday" role="img" title="' + h[1] +
+      '" aria-label="' + h[1] + '">' + h[0] + "</span>"
+    );
+  }
+
   // The "sports day" rolls over at 4am local, not midnight — so a game
   // that finishes late still shows (as "Final") to night owls until 4am
   // the next morning, then drops out. Computed as the calendar day of
@@ -320,19 +382,22 @@
     const isFinal = !!(live && live.state === "final");
     const isSoon = !isLive && !isFinal && isSoonDate(ev.date);
     const lkey = team.sportPath + ":" + team.teamId; // for in-place score updates
+    // Holiday icon rides along with whichever cell carries the date, so it
+    // shows exactly once per row in every state.
+    const hol = holidayHTML(ev.date);
     let dateCell, lastCell;
     if (isLive) {
-      dateCell = '<span class="g-date"><span class="live-dot"></span>LIVE</span>';
+      dateCell = '<span class="g-date"><span class="live-dot"></span>LIVE' + hol + "</span>";
       lastCell = '<span class="g-status" data-lstatus="' + lkey + '">' + live.status + "</span>";
     } else if (isFinal) {
       dateCell = '<span class="g-date">Final</span>';
       // Put the date back where the start time was ("Today" / "Sat, Jul 4").
-      lastCell = '<span class="g-time">' + dayLabel(ev.date) + "</span>";
+      lastCell = '<span class="g-time">' + dayLabel(ev.date) + hol + "</span>";
     } else if (isSoon) {
-      dateCell = '<span class="g-date"><span class="live-dot"></span>Starts soon</span>';
+      dateCell = '<span class="g-date"><span class="live-dot"></span>Starts soon' + hol + "</span>";
       lastCell = '<span class="g-time">' + fmtTime.format(ev.date) + "</span>";
     } else {
-      dateCell = '<span class="g-date">' + dayLabel(ev.date) + "</span>";
+      dateCell = '<span class="g-date">' + dayLabel(ev.date) + hol + "</span>";
       lastCell = '<span class="g-time">' + fmtTime.format(ev.date) + "</span>";
     }
     // Channels + preseason/national tags are pre-game info — hide once final.
@@ -428,13 +493,14 @@
     const isFinal = !!(live && live.state === "final");
     const isSoon = !isLive && !isFinal && isSoonDate(item.ev.date);
     const lkey = item.team.sportPath + ":" + item.team.teamId;
+    const hol = holidayHTML(item.ev.date);
     const topCell = isLive
-      ? '<div class="next-when"><span class="live-dot"></span>LIVE</div>'
+      ? '<div class="next-when"><span class="live-dot"></span>LIVE' + hol + "</div>"
       : isFinal
-      ? '<div class="next-when">Final</div>'
+      ? '<div class="next-when">Final' + hol + "</div>"
       : isSoon
-      ? '<div class="next-when"><span class="live-dot"></span>Starts soon</div>'
-      : '<div class="next-when">' + dayLabel(item.ev.date) + "</div>";
+      ? '<div class="next-when"><span class="live-dot"></span>Starts soon' + hol + "</div>"
+      : '<div class="next-when">' + dayLabel(item.ev.date) + hol + "</div>";
     let result = "";
     if (isFinal) {
       const r = live.us > live.them ? ["W", "g-win"]

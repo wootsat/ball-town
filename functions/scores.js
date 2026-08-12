@@ -9,6 +9,9 @@
 //             and the home-page "see all live games" indicator. sportPath/
 //             homeId/awayId/national let the Live page apply the same
 //             Puffer-link rules the city pages use.
+//   degraded / failed : health signal — true + the list of feeds that
+//             couldn't be read this cycle, so an upstream block is visible
+//             in the response instead of looking like "nothing is live".
 // (Was /live; renamed so the /live URL can serve the Live Now page.)
 
 // Scoreboard hosts, tried in order. **`site.api.espn.com` returns 403 "Access
@@ -133,10 +136,11 @@ function pwhlStatus(g, final) {
   return (p ? p + clock : (g.GameStatusString || "Live"));
 }
 // Merge PWHL in-progress/final games into the shared games map + live[].
+// Returns false if the feed couldn't be read (so it's reported in `failed`).
 async function addPWHL(games, live) {
   try {
     const j = await getJSON(PWHL_SCOREBAR);
-    if (!j) return;
+    if (!j) return false;
     const bar = (j.SiteKit && j.SiteKit.Scorebar) || [];
     bar.forEach((g) => {
       const gs = String(g.GameStatus);
@@ -163,16 +167,21 @@ async function addPWHL(games, live) {
         });
       }
     });
-  } catch (e) { /* skip PWHL this cycle */ }
+    return true;
+  } catch (e) { return false; /* skip PWHL this cycle */ }
 }
 
 async function buildLive() {
   const games = {};
   const live = [];
+  // Which feeds we couldn't read this cycle. Without this a total upstream
+  // block looks exactly like "no games are live" — which is how the Akamai
+  // 403 above went unnoticed. Reported as `failed`/`degraded` on the JSON.
+  const failed = [];
   await Promise.all(LEAGUES.map(async (lg) => {
     try {
       const j = await scoreboard(lg);
-      if (!j) return;
+      if (!j) { failed.push(lg); return; }
       (j.events || []).forEach((ev) => {
         const st = ev.status && ev.status.type;
         // in-progress ("in") or finished ("post"). "post" games stay on
@@ -231,11 +240,22 @@ async function buildLive() {
           }
         }
       });
-    } catch (e) { /* skip this league on error */ }
+    } catch (e) { failed.push(lg); /* skip this league on error */ }
   }));
-  await addPWHL(games, live); // ESPN doesn't carry the PWHL — its own feed does
+  // ESPN doesn't carry the PWHL — its own feed does.
+  if (!(await addPWHL(games, live))) failed.push("hockey/pwhl");
   live.sort((a, b) => a.sport.localeCompare(b.sport) || a.home.localeCompare(b.home));
-  return { generated: new Date().toISOString(), games: games, live: live };
+  failed.sort();
+  return {
+    generated: new Date().toISOString(),
+    // Health signal: `degraded` is true whenever any feed failed, and
+    // `failed` names them. Curl /scores to see an upstream block instead of
+    // guessing from an empty `live`. Clients ignore both fields.
+    degraded: failed.length > 0,
+    failed: failed,
+    games: games,
+    live: live
+  };
 }
 
 export async function onRequest(context) {
